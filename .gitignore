@@ -24,8 +24,11 @@ build/
 google-services.json
 
 # Build Logs
+*.log
+*.txt
+!proguard-rules.pro
+!consumer-rules.pro
 build_log.txt
-
-# OS-specific
-.DS_Store
-Thumbs.db
+build_err.txt
+wear_build_log.txt
+report.txt
