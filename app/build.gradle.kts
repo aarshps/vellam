@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     // alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -55,6 +56,7 @@ dependencies {
     implementation(libs.androidx.material3.adaptive)
     implementation(libs.androidx.material3.adaptive.layout)
     implementation(libs.androidx.material3.adaptive.navigation)
+    implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.material)
     
     // Widget

@@ -1,0 +1,41 @@
+package com.hora.vellam.core.auth
+
+import android.content.Context
+import android.util.Log
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.tasks.await
+
+class AuthManager(private val context: Context) {
+    private val auth: FirebaseAuth = Firebase.auth
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser
+
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            _currentUser.value = firebaseAuth.currentUser
+        }
+    }
+
+    suspend fun signInWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        try {
+            auth.signInWithCredential(credential).await()
+        } catch (e: Exception) {
+            Log.e("AuthManager", "Firebase sign in failed", e)
+            throw e
+        }
+    }
+
+    fun signOut() {
+        auth.signOut()
+        GoogleSignIn.getClient(context, GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
+    }
+}

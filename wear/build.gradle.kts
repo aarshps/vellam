@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     // alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -46,8 +47,10 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.play.services.wearable)
-    implementation(libs.androidx.wear.compose.material)
+    implementation(libs.androidx.wear.compose.material3)
+    // implementation(libs.androidx.wear.compose.material)
     implementation(libs.androidx.wear.compose.foundation)
+    implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

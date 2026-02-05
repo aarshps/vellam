@@ -19,3 +19,13 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+# Google Services
+google-services.json
+
+# Build Logs
+build_log.txt
+
+# OS-specific
+.DS_Store
+Thumbs.db

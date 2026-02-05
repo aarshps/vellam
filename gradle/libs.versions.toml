@@ -1,7 +1,7 @@
 
 [versions]
 agp = "9.0.0"
-kotlin = "2.2.10"
+kotlin = "2.1.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -12,10 +12,13 @@ composeBom = "2024.10.01"
 # Material 3 Expressive might require a specific version or just the latest M3
 material3 = "1.3.1" 
 wearCompose = "1.4.0"
+wearComposeMaterial3 = "1.0.0-alpha30"
 glance = "1.1.1"
 datastore = "1.1.1"
 work = "2.10.0"
 playServicesWearable = "19.0.0"
+googleFonts = "1.7.0"
+room = "2.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,8 +39,16 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 androidx-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version = "1.0.0" }
 androidx-material3-adaptive-layout = { group = "androidx.compose.material3.adaptive", name = "adaptive-layout", version = "1.0.0" }
 androidx-material3-adaptive-navigation = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation", version = "1.0.0" }
+androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "googleFonts" }
+
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version = "33.7.0" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version = "21.3.0" }
 
 # Wear OS
+androidx-wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearComposeMaterial3" }
 androidx-wear-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "wearCompose" }
 androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
@@ -56,3 +67,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.2" }

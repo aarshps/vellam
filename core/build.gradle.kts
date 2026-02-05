@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.library)
     // alias(libs.plugins.kotlin.android)
@@ -24,20 +23,19 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    // kotlinOptions removed
-}
-
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
+    
+    // Firebase (exposed transitively)
+    api(platform(libs.firebase.bom))
+    api(libs.firebase.auth)
+    api(libs.firebase.firestore)
+    api(libs.play.services.auth)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
