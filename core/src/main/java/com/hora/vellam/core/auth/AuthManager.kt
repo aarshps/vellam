@@ -34,8 +34,13 @@ class AuthManager(private val context: Context) {
         }
     }
 
-    fun signOut() {
+    suspend fun signOut() {
         auth.signOut()
-        GoogleSignIn.getClient(context, GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
+        try {
+            androidx.credentials.CredentialManager.create(context)
+                .clearCredentialState(androidx.credentials.ClearCredentialStateRequest())
+        } catch (e: Exception) {
+            Log.e("AuthManager", "Clear credential state failed", e)
+        }
     }
 }

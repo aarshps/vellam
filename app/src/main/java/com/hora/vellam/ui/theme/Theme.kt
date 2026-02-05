@@ -11,6 +11,10 @@ import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import android.app.Activity
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -37,137 +41,28 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = Color(0xFF81D4FA)
 )
 
-val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs
-)
+// Typography moved to Type.kt
 
-val GoogleSansFlexFont = GoogleFont("Google Sans Flex")
 
-val GoogleSansFlexFamily = FontFamily(
-    Font(googleFont = GoogleSansFlexFont, fontProvider = provider)
-)
-
-val AppTypography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 57.sp,
-        lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 45.sp,
-        lineHeight = 52.sp,
-        letterSpacing = 0.sp
-    ),
-    displaySmall = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 36.sp,
-        lineHeight = 44.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 28.sp,
-        lineHeight = 36.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
-        letterSpacing = 0.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
-    ),
-    titleSmall = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-    bodySmall = TextStyle(
-        fontFamily = GoogleSansFlexFamily,
-        fontWeight = FontWeight.W400,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
-    )
-)
-
-val AppShapes = Shapes(
+val DefaultShapes = Shapes(
     small = RoundedCornerShape(16.dp),
     medium = RoundedCornerShape(24.dp),
     large = RoundedCornerShape(32.dp),
-    extraLarge = RoundedCornerShape(100) // Max roundness (Stadium/Circle)
+    extraLarge = RoundedCornerShape(100) // Max roundness
+)
+
+val MaxRoundedShapes = Shapes(
+    small = RoundedCornerShape(28.dp), // Increased from 16
+    medium = RoundedCornerShape(36.dp), // Increased from 24
+    large = RoundedCornerShape(48.dp),  // Increased from 32
+    extraLarge = RoundedCornerShape(100)
 )
 
 @Composable
 fun VellamTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    useGoogleSans: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -179,10 +74,21 @@ fun VellamTheme(
         else -> LightColorScheme
     }
 
+    val typography = if (useGoogleSans) com.hora.vellam.ui.theme.GoogleSansTypography else com.hora.vellam.ui.theme.DefaultTypography
+    val shapes = if (useGoogleSans) MaxRoundedShapes else DefaultShapes
+    
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
+        typography = typography,
+        shapes = shapes,
         content = content
     )
 }

@@ -35,6 +35,11 @@ dependencies {
     api(libs.firebase.auth)
     api(libs.firebase.firestore)
     api(libs.play.services.auth)
+    
+    // Credential Manager
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

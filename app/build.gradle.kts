@@ -57,8 +57,18 @@ dependencies {
     implementation(libs.androidx.material3.adaptive.layout)
     implementation(libs.androidx.material3.adaptive.navigation)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.material)
     
+    // Wearable Data Layer
+    implementation(libs.play.services.wearable)
+    
+    // Credential Manager
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
     // Widget
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)

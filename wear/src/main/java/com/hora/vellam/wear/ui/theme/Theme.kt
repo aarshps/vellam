@@ -97,10 +97,10 @@ val WearTypography = Typography(
 )
 
 val WearShapes = Shapes(
-    small = RoundedCornerShape(16.dp),
-    medium = RoundedCornerShape(24.dp),
-    large = RoundedCornerShape(32.dp),
-    extraLarge = RoundedCornerShape(48.dp) // or Percent(50)
+    small = RoundedCornerShape(24.dp),
+    medium = RoundedCornerShape(32.dp),
+    large = RoundedCornerShape(100), // Max roundness for large components
+    extraLarge = RoundedCornerShape(100)
 )
 
 @Composable

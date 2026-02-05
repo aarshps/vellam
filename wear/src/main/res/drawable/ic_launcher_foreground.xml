@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="900"
+    android:viewportHeight="900">
+    <!-- Centered Logo within safe zone -->
+    <group
+        android:translateX="135"
+        android:translateY="135"
+        android:scaleX="0.7"
+        android:scaleY="0.7">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0 592L18.8 569.5C37.7 547 75.3 502 112.8 488C150.3 474 187.7 491 225.2 460.2C262.7 429.3 300.3 350.7 337.8 343.5C375.3 336.3 412.7 400.7 450.2 400C487.7 399.3 525.3 333.7 562.8 320C600.3 306.3 637.7 344.7 675.2 401.3C712.7 458 750.3 533 787.8 549C825.3 565 862.7 522 881.3 500.5L900 479L900 901L881.3 901C862.7 901 825.3 901 787.8 901C750.3 901 712.7 901 675.2 901C637.7 901 600.3 901 562.8 901C525.3 901 487.7 901 450.2 901C412.7 901 375.3 901 337.8 901C300.3 901 262.7 901 225.2 901C187.7 901 150.3 901 112.8 901C75.3 901 37.7 901 18.8 901L0 901Z" />
+    </group>
+</vector>
