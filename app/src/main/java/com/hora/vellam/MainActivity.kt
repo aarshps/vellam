@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hora.vellam.ui.theme.VellamTheme
 import com.hora.vellam.core.PreferenceManager
 import com.hora.vellam.core.auth.AuthManager
@@ -74,8 +75,8 @@ class MainActivity : ComponentActivity() {
         setupReminders()
 
         setContent {
-            val isGoogleSans by preferenceManager.googleSansFlow.collectAsState(initial = true)
-            val appTheme by preferenceManager.themeFlow.collectAsState(initial = 0)
+            val isGoogleSans by preferenceManager.googleSansFlow.collectAsStateWithLifecycle(initialValue = true)
+            val appTheme by preferenceManager.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
             
             val darkTheme = when(appTheme) {
                 1 -> false // Light
@@ -91,7 +92,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val user by authManager.currentUser.collectAsState()
+                    val user by authManager.currentUser.collectAsStateWithLifecycle()
                     
                     if (user == null) {
                         LoginScreen(onLoginSuccess = { idToken ->
@@ -189,15 +190,15 @@ fun VellamApp(
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
-    val interval by prefs.intervalFlow.collectAsState(initial = 60)
-    val dailyGoal by prefs.dailyGoalFlow.collectAsState(initial = 2000)
-    val intakeAmount by prefs.intakeAmountFlow.collectAsState(initial = 250)
-    val sleepStart by prefs.sleepStartFlow.collectAsState(initial = "22:00")
-    val sleepEnd by prefs.sleepEndFlow.collectAsState(initial = "07:00")
-    val isGoogleSans by prefs.googleSansFlow.collectAsState(initial = true)
-    val appTheme by prefs.themeFlow.collectAsState(initial = 0)
+    val interval by prefs.intervalFlow.collectAsStateWithLifecycle(initialValue = 60)
+    val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
+    val intakeAmount by prefs.intakeAmountFlow.collectAsStateWithLifecycle(initialValue = 250)
+    val sleepStart by prefs.sleepStartFlow.collectAsStateWithLifecycle(initialValue = "22:00")
+    val sleepEnd by prefs.sleepEndFlow.collectAsStateWithLifecycle(initialValue = "07:00")
+    val isGoogleSans by prefs.googleSansFlow.collectAsStateWithLifecycle(initialValue = true)
+    val appTheme by prefs.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
 
-    val firestoreSettings by repo.getSettings().collectAsState(initial = null)
+    val firestoreSettings by repo.getSettings().collectAsStateWithLifecycle(initialValue = null)
 
     // Push local changes to Firestore
     LaunchedEffect(interval, dailyGoal, intakeAmount, sleepStart, sleepEnd, isGoogleSans, appTheme) {
@@ -275,9 +276,9 @@ fun VellamApp(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
-    val dailyTotal by repo.getTodayIntake().collectAsState(initial = 0)
-    val dailyGoal by prefs.dailyGoalFlow.collectAsState(initial = 2000)
-    val intakeAmount by prefs.intakeAmountFlow.collectAsState(initial = 250)
+    val dailyTotal by repo.getTodayIntake().collectAsStateWithLifecycle(initialValue = 0)
+    val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
+    val intakeAmount by prefs.intakeAmountFlow.collectAsStateWithLifecycle(initialValue = 250)
     
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -405,13 +406,13 @@ fun SettingsScreen(
     authManager: AuthManager,
     onNavigateHistory: () -> Unit
 ) {
-    val interval by prefs.intervalFlow.collectAsState(initial = 60)
-    val dailyGoal by prefs.dailyGoalFlow.collectAsState(initial = 2000)
-    val intakeAmount by prefs.intakeAmountFlow.collectAsState(initial = 250)
-    val sleepStart by prefs.sleepStartFlow.collectAsState(initial = "22:00")
-    val sleepEnd by prefs.sleepEndFlow.collectAsState(initial = "07:00")
-    val isGoogleSans by prefs.googleSansFlow.collectAsState(initial = true)
-    val appTheme by prefs.themeFlow.collectAsState(initial = 0)
+    val interval by prefs.intervalFlow.collectAsStateWithLifecycle(initialValue = 60)
+    val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
+    val intakeAmount by prefs.intakeAmountFlow.collectAsStateWithLifecycle(initialValue = 250)
+    val sleepStart by prefs.sleepStartFlow.collectAsStateWithLifecycle(initialValue = "22:00")
+    val sleepEnd by prefs.sleepEndFlow.collectAsStateWithLifecycle(initialValue = "07:00")
+    val isGoogleSans by prefs.googleSansFlow.collectAsStateWithLifecycle(initialValue = true)
+    val appTheme by prefs.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
     
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -609,7 +610,7 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
-    val history by repo.getHistory().collectAsState(initial = emptyList())
+    val history by repo.getHistory().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     
     val pullToRefreshState = rememberPullToRefreshState()
@@ -705,29 +706,6 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
     }
 }
 
-fun vibrateSmall(context: Context) {
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
-        vibratorManager.defaultVibrator.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE))
-    } else {
-        @Suppress("DEPRECATION")
-        (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(10)
-    }
-}
+fun vibrateSmall(context: Context) = com.hora.vellam.core.HapticManager.vibrateSmall(context)
 
-fun vibrateSwallow(context: Context) {
-    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-        val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
-        manager.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-    }
-    
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 100, 150, 80, 100, 120), intArrayOf(0, 50, 0, 80, 0, 120), -1))
-    } else {
-        @Suppress("DEPRECATION")
-        vibrator.vibrate(200)
-    }
-}
+fun vibrateSwallow(context: Context) = com.hora.vellam.core.HapticManager.vibrateSwallow(context)

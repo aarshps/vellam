@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.wear.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,10 +30,14 @@ import androidx.compose.foundation.background
 import android.os.Vibrator
 import android.os.VibrationEffect
 import android.content.Context
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import android.util.Log
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.CircularProgressIndicator
@@ -62,30 +67,39 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VellamWearTheme {
-                val user by authManager.currentUser.collectAsState()
+                val user by authManager.currentUser.collectAsStateWithLifecycle()
                 
                 if (user == null) {
                      // Try Silent Sign In
                      val context = androidx.compose.ui.platform.LocalContext.current
                      LaunchedEffect(Unit) {
-                         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                             .requestIdToken("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
-                             .requestEmail()
+                         val credentialManager = CredentialManager.create(context)
+                         val googleIdOption = GetGoogleIdOption.Builder()
+                             .setFilterByAuthorizedAccounts(false)
+                             .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
+                             .setAutoSelectEnabled(true)
                              .build()
-                         val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                         googleSignInClient.silentSignIn().addOnCompleteListener { task ->
-                             if (task.isSuccessful) {
-                                 val account = task.result
-                                 account?.idToken?.let { token ->
-                                     launch {
-                                         try {
-                                             authManager.signInWithGoogle(token)
-                                         } catch (e: Exception) {
-                                             Log.e("WearSilentAuth", "Silent login failed", e)
-                                         }
+
+                         val request = GetCredentialRequest.Builder()
+                             .setCredentialOptions(listOf(googleIdOption))
+                             .build()
+
+                         try {
+                             val result = credentialManager.getCredential(context, request)
+                             val credential = result.credential
+                             if (credential is CustomCredential && 
+                                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                 launch {
+                                     try {
+                                         authManager.signInWithGoogle(googleIdTokenCredential.idToken)
+                                     } catch (e: Exception) {
+                                         Log.e("WearSilentAuth", "Firebase auth failed", e)
                                      }
                                  }
                              }
+                         } catch (e: GetCredentialException) {
+                             Log.e("WearSilentAuth", "Silent login failed", e)
                          }
                      }
                      LoginScreen(authManager)
@@ -103,29 +117,6 @@ fun LoginScreen(authManager: AuthManager) {
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        isLoading = true
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            account.idToken?.let { token ->
-                 scope.launch {
-                     try {
-                         authManager.signInWithGoogle(token)
-                     } catch (e: Exception) {
-                         Log.e("WearLogin", "Firebase auth failed", e)
-                         isLoading = false
-                     }
-                 }
-            }
-        } catch (e: ApiException) {
-             Log.e("WearLogin", "Google sign in failed", e)
-             isLoading = false
-        }
-    }
-
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center
@@ -142,12 +133,32 @@ fun LoginScreen(authManager: AuthManager) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
-                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                            .requestIdToken("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com") // Use the same ID as phone
-                            .requestEmail()
-                            .build()
-                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                        launcher.launch(googleSignInClient.signInIntent)
+                        scope.launch {
+                            isLoading = true
+                            val credentialManager = CredentialManager.create(context)
+                            val googleIdOption = GetGoogleIdOption.Builder()
+                                .setFilterByAuthorizedAccounts(false)
+                                .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
+                                .setAutoSelectEnabled(false)
+                                .build()
+
+                            val request = GetCredentialRequest.Builder()
+                                .setCredentialOptions(listOf(googleIdOption))
+                                .build()
+
+                            try {
+                                val result = credentialManager.getCredential(context, request)
+                                val credential = result.credential
+                                if (credential is CustomCredential && 
+                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                    authManager.signInWithGoogle(googleIdTokenCredential.idToken)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("WearLogin", "Google sign in failed", e)
+                                isLoading = false
+                            }
+                        }
                     }
                 ) {
                     Text("Google Sign In")
@@ -161,9 +172,9 @@ fun LoginScreen(authManager: AuthManager) {
 @Composable
 fun WearApp(repo: FirestoreRepository) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val intake by repo.getTodayIntake().collectAsState(initial = 0)
-    val history by repo.getHistory().collectAsState(initial = emptyList())
-    val settings by repo.getSettings().collectAsState(initial = com.hora.vellam.core.data.UserSettings())
+    val intake by repo.getTodayIntake().collectAsStateWithLifecycle(initialValue = 0)
+    val history by repo.getHistory().collectAsStateWithLifecycle(initialValue = emptyList())
+    val settings by repo.getSettings().collectAsStateWithLifecycle(initialValue = com.hora.vellam.core.data.UserSettings())
     val scope = rememberCoroutineScope()
     
     // Pager for Navigation (0=Main, 1=History, 2=Settings)
@@ -352,6 +363,17 @@ fun MainScreen(
 
 @Composable
 fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete: (String) -> Unit) {
+    val formattedHistory = remember(history) {
+        history.map { entry ->
+            val date = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochSecond(entry.timestamp.seconds, entry.timestamp.nanoseconds.toLong()),
+                java.time.ZoneId.systemDefault()
+            )
+            val timeStr = java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(date)
+            entry to timeStr
+        }
+    }
+
     androidx.wear.compose.foundation.lazy.ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         anchorType = androidx.wear.compose.foundation.lazy.ScalingLazyListAnchorType.ItemStart,
@@ -363,7 +385,7 @@ fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete
             }
         }
         
-        if (history.isEmpty()) {
+        if (formattedHistory.isEmpty()) {
             item {
                 Text(
                     "No history", 
@@ -373,13 +395,8 @@ fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete
                 )
             }
         } else {
-            items(history.size) { index ->
-                val entry = history[index]
-                val date = java.time.LocalDateTime.ofInstant(
-                    java.time.Instant.ofEpochSecond(entry.timestamp.seconds, entry.timestamp.nanoseconds.toLong()),
-                    java.time.ZoneId.systemDefault()
-                )
-                val timeStr = java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(date)
+            items(formattedHistory.size) { index ->
+                val (entry, timeStr) = formattedHistory[index]
 
                 Button(
                     onClick = { onDelete(entry.id) },
@@ -474,35 +491,7 @@ fun SettingsScreen(settings: com.hora.vellam.core.data.UserSettings) {
     }
 }
 
-fun vibrateSmall(context: Context) {
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
-        vibratorManager.defaultVibrator.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE))
-    } else {
-        @Suppress("DEPRECATION")
-        (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(10)
-    }
-}
+fun vibrateSmall(context: Context) = com.hora.vellam.core.HapticManager.vibrateSmall(context)
 
-fun vibrateSwallow(context: Context) {
-    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-        val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
-        manager.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-    }
-    
-    // Expressive "Liquid" Waveform: 3 quick pulses of increasing intensity
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-         vibrator.vibrate(VibrationEffect.createWaveform(
-             longArrayOf(0, 40, 50, 40, 50, 60), 
-             intArrayOf(0, 100, 0, 180, 0, 255), 
-             -1
-         ))
-    } else {
-        @Suppress("DEPRECATION")
-        vibrator.vibrate(200)
-    }
-}
+fun vibrateSwallow(context: Context) = com.hora.vellam.core.HapticManager.vibrateSwallow(context)
 
