@@ -90,6 +90,28 @@ class FirestoreRepository {
         userIntakeCollection(uid).add(intake).await()
     }
 
+    suspend fun getTodayIntakeOnce(): Int? {
+        val uid = auth.currentUser?.uid ?: return null
+        return try {
+            val now = java.time.LocalDate.now()
+            val startOfDay = java.time.ZoneId.systemDefault().let { zone ->
+                val instant = now.atStartOfDay(zone).toInstant()
+                com.google.firebase.Timestamp(instant.epochSecond, instant.nano)
+            }
+
+            val snapshot = userIntakeCollection(uid)
+                .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                .get()
+                .await()
+
+            snapshot.documents.sumOf {
+                it.toObject(WaterIntake::class.java)?.amountMl ?: 0
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun deleteIntake(id: String) {
         val uid = auth.currentUser?.uid ?: return
         userIntakeCollection(uid).document(id).delete().await()

@@ -44,6 +44,7 @@ import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.CardDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.CircularProgressIndicatorDefaults
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.MaterialTheme
@@ -214,8 +215,11 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
     }
 
     var settings by remember { mutableStateOf(WearSettingsStore.read(context)) }
+    var todayIntake by remember { mutableStateOf(WearTodayIntakeStore.read(context).totalMl) }
     val intakeAmountMl = settings.intakeAmountMl.coerceAtLeast(1)
+    val dailyGoalMl = settings.dailyGoalMl.coerceAtLeast(1)
     val reminderInterval = WatchReminderScheduler.sanitizeInterval(settings.reminderIntervalMins)
+    val progress = (todayIntake / dailyGoalMl.toFloat()).coerceIn(0f, 1f)
 
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var statusText by rememberSaveable { mutableStateOf("Ready") }
@@ -225,6 +229,13 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
         if (cloudSettings != null) {
             settings = WearSettingsStore.writeFromUserSettings(context, cloudSettings)
             WearTileUpdater.request(context)
+        }
+        val cloudToday = runCatching { repo.getTodayIntakeOnce() }.getOrNull()
+        if (cloudToday != null) {
+            todayIntake = WearTodayIntakeStore.setTodayTotal(context, cloudToday).totalMl
+            WearTileUpdater.request(context)
+        } else {
+            todayIntake = WearTodayIntakeStore.read(context).totalMl
         }
     }
 
@@ -250,6 +261,7 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
 
     ScreenScaffold(
         scrollState = listState,
+        scrollIndicator = null,
         edgeButton = {
             EdgeButton(
                 onClick = {
@@ -259,8 +271,10 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                     scope.launch {
                         try {
                             repo.addWaterIntake(intakeAmountMl)
+                            todayIntake = WearTodayIntakeStore.addIntake(context, intakeAmountMl).totalMl
                             vibrateSwallow(context)
                             statusText = "Logged $intakeAmountMl ml"
+                            WearTileUpdater.request(context)
                         } catch (e: Exception) {
                             Log.e("WearDrink", "Failed to log water", e)
                             statusText = "Failed, try again"
@@ -281,7 +295,7 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 36.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 42.dp, bottom = 96.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item {
@@ -294,19 +308,37 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Hydration",
+                            text = "Hydration Today",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.44f)
+                                    .padding(2.dp),
+                                strokeWidth = CircularProgressIndicatorDefaults.largeStrokeWidth,
+                                gapSize = 6.dp
+                            )
+                            Text(
+                                text = "${(progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "$intakeAmountMl ml",
-                            style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "$todayIntake / $dailyGoalMl ml",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -316,12 +348,6 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Use the edge action to log one drink.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }

@@ -20,6 +20,7 @@ class WearDrinkActionReceiver : BroadcastReceiver() {
                 val repo = FirestoreRepository()
                 val amount = WearSettingsStore.read(context).intakeAmountMl
                 repo.addWaterIntake(amount)
+                WearTodayIntakeStore.addIntake(context, amount)
                 com.hora.vellam.core.HapticManager.vibrateSwallow(context)
                 WearTileUpdater.request(context)
 

@@ -16,6 +16,7 @@ class TileDrinkActivity : ComponentActivity() {
                 val repo = FirestoreRepository()
                 val amount = WearSettingsStore.read(this@TileDrinkActivity).intakeAmountMl
                 repo.addWaterIntake(amount)
+                WearTodayIntakeStore.addIntake(this@TileDrinkActivity, amount)
                 com.hora.vellam.core.HapticManager.vibrateSwallow(this@TileDrinkActivity)
                 WearTileUpdater.request(this@TileDrinkActivity)
             } catch (e: Exception) {

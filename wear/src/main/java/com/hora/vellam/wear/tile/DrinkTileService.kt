@@ -7,6 +7,7 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.material.CircularProgressIndicator
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -14,6 +15,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.hora.vellam.wear.TileDrinkActivity
 import com.hora.vellam.wear.WearSettingsStore
+import com.hora.vellam.wear.WearTodayIntakeStore
 
 class DrinkTileService : TileService() {
     companion object {
@@ -25,6 +27,10 @@ class DrinkTileService : TileService() {
     ): ListenableFuture<TileBuilders.Tile> {
         val settings = WearSettingsStore.read(applicationContext)
         val intakeAmountMl = settings.intakeAmountMl.coerceAtLeast(1)
+        val dailyGoalMl = settings.dailyGoalMl.coerceAtLeast(1)
+        val todayTotalMl = WearTodayIntakeStore.read(applicationContext).totalMl.coerceAtLeast(0)
+        val progress = (todayTotalMl / dailyGoalMl.toFloat()).coerceIn(0f, 1f)
+        val progressPercent = (progress * 100f).toInt()
 
         val launchAction = ActionBuilders.LaunchAction.Builder()
             .setAndroidActivity(
@@ -74,22 +80,58 @@ class DrinkTileService : TileService() {
                     .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                     .addContent(
                         LayoutElementBuilders.Text.Builder()
-                            .setText("I Drank")
+                            .setText("Hydration Today")
                             .setFontStyle(
                                 LayoutElementBuilders.FontStyle.Builder()
-                                    .setSize(DimensionBuilders.sp(20f))
+                                    .setSize(DimensionBuilders.sp(14f))
                                     .setColor(ColorBuilders.argb(0xFFFFFFFF.toInt()))
                                     .build()
                             )
                             .build()
                     )
                     .addContent(
+                        LayoutElementBuilders.Box.Builder()
+                            .setWidth(DimensionBuilders.dp(64f))
+                            .setHeight(DimensionBuilders.dp(64f))
+                            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                            .addContent(
+                                CircularProgressIndicator.Builder()
+                                    .setProgress(progress)
+                                    .setStrokeWidth(DimensionBuilders.dp(6f))
+                                    .build()
+                            )
+                            .addContent(
+                                LayoutElementBuilders.Text.Builder()
+                                    .setText("$progressPercent%")
+                                    .setFontStyle(
+                                        LayoutElementBuilders.FontStyle.Builder()
+                                            .setSize(DimensionBuilders.sp(12f))
+                                            .setColor(ColorBuilders.argb(0xFFFFFFFF.toInt()))
+                                            .build()
+                                    )
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .addContent(
                         LayoutElementBuilders.Text.Builder()
-                            .setText("$intakeAmountMl ml")
+                            .setText("$todayTotalMl / $dailyGoalMl ml")
                             .setFontStyle(
                                 LayoutElementBuilders.FontStyle.Builder()
-                                    .setSize(DimensionBuilders.sp(14f))
+                                    .setSize(DimensionBuilders.sp(11f))
                                     .setColor(ColorBuilders.argb(0xFFE6EEFF.toInt()))
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .addContent(
+                        LayoutElementBuilders.Text.Builder()
+                            .setText("I Drank $intakeAmountMl ml")
+                            .setFontStyle(
+                                LayoutElementBuilders.FontStyle.Builder()
+                                    .setSize(DimensionBuilders.sp(13f))
+                                    .setColor(ColorBuilders.argb(0xFFFFFFFF.toInt()))
                                     .build()
                             )
                             .build()
