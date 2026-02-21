@@ -76,7 +76,6 @@ class DrinkTileService : TileService() {
                             .setFontStyle(
                                 LayoutElementBuilders.FontStyle.Builder()
                                     .setSize(DimensionBuilders.sp(18f))
-                                    .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                                     .setColor(ColorBuilders.argb(0xFFFFFFFF.toInt()))
                                     .build()
                             )

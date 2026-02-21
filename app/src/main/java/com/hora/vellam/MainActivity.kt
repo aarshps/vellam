@@ -22,6 +22,7 @@ import com.hora.vellam.core.WaterReminderScheduler
 import com.hora.vellam.core.auth.AuthManager
 import com.hora.vellam.core.data.FirestoreRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import android.media.MediaPlayer
 import android.os.Vibrator
@@ -29,19 +30,12 @@ import android.os.VibrationEffect
 import android.content.Context
 import android.util.Log
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.WaterDrop
-import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material.icons.rounded.Bedtime
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
@@ -211,7 +205,7 @@ fun VellamApp(
 ) {
     var currentTab by remember { mutableStateOf(0) } // 0=Home, 1=Settings, 2=History
     val context = androidx.compose.ui.platform.LocalContext.current
-    val settingsFlow = remember(repo) { repo.getSettings() }
+    val settingsFlow = remember(repo) { repo.getSettings().map { it as com.hora.vellam.core.data.UserSettings? } }
     
     val interval by prefs.intervalFlow.collectAsStateWithLifecycle(initialValue = 60)
     val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
@@ -275,13 +269,13 @@ fun VellamApp(
                 NavigationBarItem(
                     selected = currentTab == 0,
                     onClick = { navigateTo(0) },
-                    icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
+                    icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text("Home") }
                 )
                 NavigationBarItem(
                     selected = currentTab == 1,
                     onClick = { navigateTo(1) },
-                    icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                    icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                     label = { Text("Settings") }
                 )
             }
@@ -419,7 +413,7 @@ fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
                 ),
                 interactionSource = interactionSource
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(32.dp))
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(32.dp))
                 Spacer(modifier = Modifier.width(16.dp))
                 Text("Drink ${intakeAmount}ml", style = MaterialTheme.typography.headlineSmall)
             }
@@ -580,7 +574,7 @@ fun SettingsScreen(
                                     onClick = { scope.launch { prefs.setAppTheme(value) } },
                                     label = { Text(label) },
                                     leadingIcon = if (selected) {
-                                        { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp)) }
+                                        { Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) }
                                     } else null,
                                     shape = CircleShape // Expressive pill shape
                                 )
@@ -707,7 +701,7 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(48.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Text(
                     "History",
@@ -736,7 +730,7 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
                         shape = RoundedCornerShape(24.dp)
                     ) {
                          com.hora.vellam.ui.components.ExpressiveSettingsItem(
-                            icon = Icons.Rounded.WaterDrop,
+                            icon = Icons.Filled.Add,
                             title = row.second,
                             subtitle = row.third,
                             onClick = {},
@@ -746,7 +740,7 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
                                         repo.deleteIntake(row.first)
                                     }
                                 }) {
-                                    Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                                 }
                             },
                              colors = CardDefaults.cardColors(containerColor = Color.Transparent)

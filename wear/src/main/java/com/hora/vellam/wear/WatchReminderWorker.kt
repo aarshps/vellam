@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hora.vellam.core.data.FirestoreRepository
+import com.hora.vellam.core.data.UserSettings
 import java.time.LocalTime
 
 class WatchReminderWorker(
