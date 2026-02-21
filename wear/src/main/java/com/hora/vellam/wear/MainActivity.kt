@@ -26,6 +26,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -401,7 +409,7 @@ private fun HomeScreen(
                 )
             ) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Rounded.WaterDrop,
+                    imageVector = Icons.Rounded.WaterDrop,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -425,7 +433,7 @@ private fun HomeScreen(
                     colors = ButtonDefaults.filledTonalButtonColors()
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Rounded.History,
+                        imageVector = Icons.Rounded.History,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -442,7 +450,7 @@ private fun HomeScreen(
                     colors = ButtonDefaults.filledTonalButtonColors()
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Rounded.Settings,
+                        imageVector = Icons.Rounded.Settings,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -549,7 +557,7 @@ private fun HistoryScreen(
                             )
                         }
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Rounded.Delete,
+                            imageVector = Icons.Rounded.Delete,
                             contentDescription = "Delete",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
@@ -580,7 +588,7 @@ private fun SettingsScreen(settings: UserSettings) {
 
         item {
             ExpressiveInfoCard(
-                icon = androidx.compose.material.icons.Icons.Rounded.Notifications,
+                icon = Icons.Rounded.Notifications,
                 title = "Daily Goal",
                 value = "${settings.dailyGoalMl} ml"
             )
@@ -588,7 +596,7 @@ private fun SettingsScreen(settings: UserSettings) {
 
         item {
             ExpressiveInfoCard(
-                icon = androidx.compose.material.icons.Icons.Rounded.WaterDrop,
+                icon = Icons.Rounded.WaterDrop,
                 title = "Drink Amount",
                 value = "${settings.intakeAmountMl} ml"
             )
@@ -596,7 +604,7 @@ private fun SettingsScreen(settings: UserSettings) {
 
         item {
             ExpressiveInfoCard(
-                icon = androidx.compose.material.icons.Icons.Rounded.Bedtime,
+                icon = Icons.Rounded.Bedtime,
                 title = "Sleep Window",
                 value = "${settings.sleepStartTime} - ${settings.sleepEndTime}"
             )
@@ -604,7 +612,7 @@ private fun SettingsScreen(settings: UserSettings) {
 
         item {
             ExpressiveInfoCard(
-                icon = androidx.compose.material.icons.Icons.Rounded.Settings,
+                icon = Icons.Rounded.Settings,
                 title = "Theme",
                 value = when (settings.appTheme) {
                     1 -> "Light"
@@ -684,21 +692,21 @@ private fun BottomTabBar(
             tab = WearTab.HOME,
             activeTab = activeTab,
             label = "Home",
-            icon = androidx.compose.material.icons.Icons.Rounded.Home,
+            icon = Icons.Rounded.Home,
             onTabSelected = onTabSelected
         )
         BottomTabButton(
             tab = WearTab.HISTORY,
             activeTab = activeTab,
             label = "Logs",
-            icon = androidx.compose.material.icons.Icons.Rounded.History,
+            icon = Icons.Rounded.History,
             onTabSelected = onTabSelected
         )
         BottomTabButton(
             tab = WearTab.SETTINGS,
             activeTab = activeTab,
             label = "Prefs",
-            icon = androidx.compose.material.icons.Icons.Rounded.Settings,
+            icon = Icons.Rounded.Settings,
             onTabSelected = onTabSelected
         )
     }
