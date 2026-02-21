@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hora.vellam.core.data.FirestoreRepository
-import com.hora.vellam.core.data.UserSettings
 import java.time.LocalTime
 
 class WatchReminderWorker(
@@ -18,15 +17,18 @@ class WatchReminderWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val repo = FirestoreRepository()
-        val settings = repo.getSettingsOnce()
-        if (settings == null) {
-            WatchReminderScheduler.ensureScheduled(
-                context = applicationContext,
-                intervalMins = 240,
-                replace = true
-            )
-            return Result.success()
+        var settings = WearSettingsStore.read(applicationContext)
+        val shouldFetchFromCloud =
+            settings.updatedAtMillis == 0L ||
+                System.currentTimeMillis() - settings.updatedAtMillis >= 6 * 60 * 60 * 1000L
+
+        if (shouldFetchFromCloud) {
+            val repo = FirestoreRepository()
+            val cloudSettings = repo.getSettingsOnce()
+            if (cloudSettings != null) {
+                settings = WearSettingsStore.writeFromUserSettings(applicationContext, cloudSettings)
+                WearTileUpdater.request(applicationContext)
+            }
         }
 
         val intervalMins = WatchReminderScheduler.sanitizeInterval(settings.reminderIntervalMins)
@@ -105,7 +107,7 @@ class WatchReminderWorker(
         prefs.edit().putLong("last_shown_at", System.currentTimeMillis()).apply()
     }
 
-    private fun isInSleepWindow(settings: UserSettings): Boolean {
+    private fun isInSleepWindow(settings: WearSettingsSnapshot): Boolean {
         val now = LocalTime.now()
         val start = parseTime(settings.sleepStartTime, default = LocalTime.of(22, 0))
         val end = parseTime(settings.sleepEndTime, default = LocalTime.of(7, 0))

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Vellam</string>
+    <string name="tile_drink_description">Hydration quick action tile</string>
 </resources>

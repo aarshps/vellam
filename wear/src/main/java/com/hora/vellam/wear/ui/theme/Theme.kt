@@ -2,11 +2,12 @@ package com.hora.vellam.wear.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.GoogleFont
-import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.ColorScheme
@@ -21,16 +22,15 @@ import com.hora.vellam.wear.R
 // Used when dynamic colors from the watch face are not available.
 private val wearDefaultColorScheme = ColorScheme()
 
-val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs
-)
-
-val GoogleSansFlexFont = GoogleFont("Google Sans Flex")
-
+@OptIn(ExperimentalTextApi::class)
 val GoogleSansFlexFamily = FontFamily(
-    Font(googleFont = GoogleSansFlexFont, fontProvider = provider)
+    Font(
+        resId = R.font.google_sans_flex,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400),
+            FontVariation.Setting("ROND", 100f)
+        )
+    )
 )
 
 val WearTypography = Typography(

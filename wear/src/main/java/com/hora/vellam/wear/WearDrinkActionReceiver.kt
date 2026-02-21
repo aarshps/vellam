@@ -18,9 +18,10 @@ class WearDrinkActionReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val repo = FirestoreRepository()
-                val amount = repo.getSettingsOnce()?.intakeAmountMl?.coerceAtLeast(1) ?: 250
+                val amount = WearSettingsStore.read(context).intakeAmountMl
                 repo.addWaterIntake(amount)
                 com.hora.vellam.core.HapticManager.vibrateSwallow(context)
+                WearTileUpdater.request(context)
 
                 val manager =
                     context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

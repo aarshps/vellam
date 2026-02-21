@@ -1,6 +1,7 @@
 package com.hora.vellam.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,25 +26,30 @@ fun SettingsGroup(
         if (title != null) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 ),
-                modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
+                modifier = Modifier.padding(start = 24.dp, bottom = 10.dp)
             )
         }
-        
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(24.dp), // Weather style roundness
+                .padding(horizontal = 16.dp)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(30.dp)
+                ),
+            shape = RoundedCornerShape(30.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(
-                modifier = Modifier.padding(vertical = 4.dp), // Small padding inside group
+                modifier = Modifier.padding(vertical = 8.dp),
                 content = content
             )
         }
@@ -142,4 +148,3 @@ fun ExpressiveSwitchItem(
         }
     )
 }
-

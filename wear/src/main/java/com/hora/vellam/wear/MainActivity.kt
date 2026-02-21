@@ -1,22 +1,30 @@
 package com.hora.vellam.wear
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,16 +32,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.Card
+import androidx.wear.compose.material3.CardDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeText
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -53,11 +69,21 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VellamWearTheme {
-                val user by authManager.currentUser.collectAsStateWithLifecycle()
-                if (user == null) {
-                    LoginScreen(authManager)
-                } else {
-                    DrinkDoneScreen(firestoreRepository)
+                AppScaffold(
+                    timeText = {
+                        TimeText {
+                            text("Vellam")
+                            separator()
+                            time()
+                        }
+                    }
+                ) {
+                    val user by authManager.currentUser.collectAsStateWithLifecycle()
+                    if (user == null) {
+                        LoginScreen(authManager)
+                    } else {
+                        DrinkDoneScreen(firestoreRepository)
+                    }
                 }
             }
         }
@@ -69,6 +95,7 @@ private fun LoginScreen(authManager: AuthManager) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+    val scrollState = rememberScrollState()
 
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var silentAttempted by rememberSaveable { mutableStateOf(false) }
@@ -118,45 +145,59 @@ private fun LoginScreen(authManager: AuthManager) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator()
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Sign in on watch",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Button(
-                    onClick = {
-                        scope.launch {
-                            if (isLoading) return@launch
-                            isLoading = true
+    ScreenScaffold(scrollState = scrollState) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 44.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(36.dp)
+                    )
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Sign in on watch",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if (isLoading) {
+                        CircularProgressIndicator()
+                    } else {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    if (isLoading) return@launch
+                                    isLoading = true
 
-                            val token = requestGoogleIdToken(autoSelect = false)
-                            if (token == null) {
-                                isLoading = false
-                                return@launch
-                            }
+                                    val token = requestGoogleIdToken(autoSelect = false)
+                                    if (token == null) {
+                                        isLoading = false
+                                        return@launch
+                                    }
 
-                            try {
-                                authManager.signInWithGoogle(token)
-                            } catch (e: Exception) {
-                                Log.e("WearLogin", "Firebase auth failed", e)
-                                isLoading = false
-                            }
+                                    try {
+                                        authManager.signInWithGoogle(token)
+                                    } catch (e: Exception) {
+                                        Log.e("WearLogin", "Firebase auth failed", e)
+                                        isLoading = false
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(30.dp)
+                        ) {
+                            Text("Google Sign In")
                         }
-                    },
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Text("Google Sign In")
+                    }
                 }
             }
         }
@@ -167,17 +208,32 @@ private fun LoginScreen(authManager: AuthManager) {
 private fun DrinkDoneScreen(repo: FirestoreRepository) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    var intakeAmountMl by rememberSaveable { mutableIntStateOf(250) }
-    var reminderInterval by rememberSaveable { mutableIntStateOf(60) }
+    val listState = rememberLazyListState()
+    val settingsPrefs = remember(context) {
+        context.getSharedPreferences(WearSettingsStore.PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    var settings by remember { mutableStateOf(WearSettingsStore.read(context)) }
+    val intakeAmountMl = settings.intakeAmountMl.coerceAtLeast(1)
+    val reminderInterval = WatchReminderScheduler.sanitizeInterval(settings.reminderIntervalMins)
 
     var isSaving by rememberSaveable { mutableStateOf(false) }
-    var statusText by rememberSaveable { mutableStateOf("Tap to log water") }
+    var statusText by rememberSaveable { mutableStateOf("Ready") }
 
     LaunchedEffect(Unit) {
-        val settings = runCatching { repo.getSettingsOnce() }.getOrNull()
-        intakeAmountMl = settings?.intakeAmountMl?.coerceAtLeast(1) ?: 250
-        reminderInterval =
-            WatchReminderScheduler.sanitizeInterval(settings?.reminderIntervalMins ?: 60)
+        val cloudSettings = runCatching { repo.getSettingsOnce() }.getOrNull()
+        if (cloudSettings != null) {
+            settings = WearSettingsStore.writeFromUserSettings(context, cloudSettings)
+            WearTileUpdater.request(context)
+        }
+    }
+
+    DisposableEffect(settingsPrefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            settings = WearSettingsStore.read(context)
+        }
+        settingsPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { settingsPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
     LaunchedEffect(reminderInterval) {
@@ -188,24 +244,23 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Button(
+    LaunchedEffect(intakeAmountMl) {
+        WearTileUpdater.request(context)
+    }
+
+    ScreenScaffold(
+        scrollState = listState,
+        edgeButton = {
+            EdgeButton(
                 onClick = {
-                    if (isSaving) return@Button
+                    if (isSaving) return@EdgeButton
                     isSaving = true
                     statusText = "Saving..."
                     scope.launch {
                         try {
                             repo.addWaterIntake(intakeAmountMl)
                             vibrateSwallow(context)
-                            statusText = "Done"
+                            statusText = "Logged $intakeAmountMl ml"
                         } catch (e: Exception) {
                             Log.e("WearDrink", "Failed to log water", e)
                             statusText = "Failed, try again"
@@ -215,17 +270,59 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                     }
                 },
                 enabled = !isSaving,
-                shape = RoundedCornerShape(28.dp)
+                buttonSize = EdgeButtonSize.Medium
             ) {
                 Text(if (isSaving) "Saving..." else "I Drank $intakeAmountMl ml")
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
+        }
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 36.dp, bottom = 96.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            item {
+                Card(
+                    onClick = {},
+                    shape = RoundedCornerShape(40.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Hydration",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "$intakeAmountMl ml",
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Use the edge action to log one drink.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

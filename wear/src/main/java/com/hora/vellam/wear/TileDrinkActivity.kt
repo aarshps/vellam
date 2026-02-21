@@ -14,9 +14,10 @@ class TileDrinkActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val repo = FirestoreRepository()
-                val amount = repo.getSettingsOnce()?.intakeAmountMl?.coerceAtLeast(1) ?: 250
+                val amount = WearSettingsStore.read(this@TileDrinkActivity).intakeAmountMl
                 repo.addWaterIntake(amount)
                 com.hora.vellam.core.HapticManager.vibrateSwallow(this@TileDrinkActivity)
+                WearTileUpdater.request(this@TileDrinkActivity)
             } catch (e: Exception) {
                 Log.e("TileDrinkActivity", "Tile intake logging failed", e)
             } finally {

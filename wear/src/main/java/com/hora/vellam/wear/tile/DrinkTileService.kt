@@ -13,6 +13,7 @@ import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.hora.vellam.wear.TileDrinkActivity
+import com.hora.vellam.wear.WearSettingsStore
 
 class DrinkTileService : TileService() {
     companion object {
@@ -22,6 +23,9 @@ class DrinkTileService : TileService() {
     override fun onTileRequest(
         requestParams: RequestBuilders.TileRequest
     ): ListenableFuture<TileBuilders.Tile> {
+        val settings = WearSettingsStore.read(applicationContext)
+        val intakeAmountMl = settings.intakeAmountMl.coerceAtLeast(1)
+
         val launchAction = ActionBuilders.LaunchAction.Builder()
             .setAndroidActivity(
                 ActionBuilders.AndroidActivity.Builder()
@@ -46,10 +50,10 @@ class DrinkTileService : TileService() {
                     .setClickable(clickable)
                     .setBackground(
                         ModifiersBuilders.Background.Builder()
-                            .setColor(ColorBuilders.argb(0xFF0B57D0.toInt()))
+                            .setColor(ColorBuilders.argb(0xFF0A4FB3.toInt()))
                             .setCorner(
                                 ModifiersBuilders.Corner.Builder()
-                                    .setRadius(DimensionBuilders.dp(18f))
+                                    .setRadius(DimensionBuilders.dp(28f))
                                     .build()
                             )
                             .build()
@@ -73,7 +77,7 @@ class DrinkTileService : TileService() {
                             .setText("I Drank")
                             .setFontStyle(
                                 LayoutElementBuilders.FontStyle.Builder()
-                                    .setSize(DimensionBuilders.sp(18f))
+                                    .setSize(DimensionBuilders.sp(20f))
                                     .setColor(ColorBuilders.argb(0xFFFFFFFF.toInt()))
                                     .build()
                             )
@@ -81,10 +85,10 @@ class DrinkTileService : TileService() {
                     )
                     .addContent(
                         LayoutElementBuilders.Text.Builder()
-                            .setText("Tap to log water")
+                            .setText("$intakeAmountMl ml")
                             .setFontStyle(
                                 LayoutElementBuilders.FontStyle.Builder()
-                                    .setSize(DimensionBuilders.sp(12f))
+                                    .setSize(DimensionBuilders.sp(14f))
                                     .setColor(ColorBuilders.argb(0xFFE6EEFF.toInt()))
                                     .build()
                             )

@@ -21,6 +21,8 @@ import com.hora.vellam.core.PreferenceManager
 import com.hora.vellam.core.WaterReminderScheduler
 import com.hora.vellam.core.auth.AuthManager
 import com.hora.vellam.core.data.FirestoreRepository
+import com.hora.vellam.core.data.UserSettings
+import com.hora.vellam.core.WearSettingsSyncHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -217,7 +219,7 @@ fun VellamApp(
 
     val firestoreSettings by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
     val localSettings = remember(interval, dailyGoal, intakeAmount, sleepStart, sleepEnd, isGoogleSans, appTheme) {
-        com.hora.vellam.core.data.UserSettings(
+        UserSettings(
             dailyGoalMl = dailyGoal,
             intakeAmountMl = intakeAmount,
             reminderIntervalMins = interval,
@@ -227,7 +229,8 @@ fun VellamApp(
             appTheme = appTheme
         )
     }
-    var observedRemoteSettings by remember { mutableStateOf<com.hora.vellam.core.data.UserSettings?>(null) }
+    var observedRemoteSettings by remember { mutableStateOf<UserSettings?>(null) }
+    var lastSentToWear by remember { mutableStateOf<UserSettings?>(null) }
 
     // Keep phone settings in sync without write loops or startup churn.
     LaunchedEffect(localSettings, firestoreSettings) {
@@ -249,6 +252,14 @@ fun VellamApp(
             if (firestoreSettings == remote && remote != localSettings) {
                 repo.updateSettings(localSettings)
             }
+        }
+    }
+
+    LaunchedEffect(localSettings) {
+        kotlinx.coroutines.delay(250)
+        if (localSettings != lastSentToWear) {
+            WearSettingsSyncHelper.sendSettingsToWear(context, localSettings)
+            lastSentToWear = localSettings
         }
     }
 
@@ -472,18 +483,60 @@ fun SettingsScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "Settings", 
-            style = MaterialTheme.typography.displaySmall, 
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp)
-        )
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+            item {
+                Spacer(modifier = Modifier.height(18.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(40.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
+                        Text(
+                            text = "Settings",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Expressive controls for phone + watch hydration.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.86f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("$intakeAmount ml") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                shape = RoundedCornerShape(22.dp)
+                            )
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("Every $interval min") },
+                                shape = RoundedCornerShape(22.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
             item {
                 com.hora.vellam.ui.components.SettingsGroup(title = "Reminders") {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -638,7 +691,6 @@ fun SettingsScreen(
                     )
                  }
             }
-        }
     }
 }
 

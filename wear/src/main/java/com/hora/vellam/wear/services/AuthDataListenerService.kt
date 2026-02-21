@@ -1,11 +1,14 @@
 package com.hora.vellam.wear.services
 
-import android.content.Intent
 import android.util.Log
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.WearableListenerService
+import com.hora.vellam.core.WearSettingsSyncContract
 import com.hora.vellam.core.auth.AuthManager
+import com.hora.vellam.wear.WearSettingsStore
+import com.hora.vellam.wear.WearTileUpdater
 import com.hora.vellam.wear.WatchReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,29 +27,41 @@ class AuthDataListenerService : WearableListenerService() {
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         super.onDataChanged(dataEvents)
-        
+
         dataEvents.forEach { event ->
-            if (event.type == DataEvent.TYPE_CHANGED) {
-                val path = event.dataItem.uri.path
-                if (path == "/auth/google_token") {
-                    val dataMapItem = com.google.android.gms.wearable.DataMapItem.fromDataItem(event.dataItem)
-                    val token = dataMapItem.dataMap.getString("token")
-                    
-                    if (!token.isNullOrEmpty()) {
-                        Log.d("AuthDataListener", "Received token from phone")
-                        scope.launch {
-                            try {
-                                authManager.signInWithGoogle(token)
-                                Log.d("AuthDataListener", "Sign in successful")
-                                WatchReminderScheduler.ensureScheduled(
-                                    context = this@AuthDataListenerService,
-                                    replace = true
-                                )
-                            } catch (e: Exception) {
-                                Log.e("AuthDataListener", "Sign in failed", e)
-                            }
+            if (event.type != DataEvent.TYPE_CHANGED) return@forEach
+
+            val path = event.dataItem.uri.path ?: return@forEach
+            val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+
+            when (path) {
+                "/auth/google_token" -> {
+                    val token = dataMap.getString("token")
+                    if (token.isNullOrEmpty()) return@forEach
+
+                    Log.d("AuthDataListener", "Received token from phone")
+                    scope.launch {
+                        try {
+                            authManager.signInWithGoogle(token)
+                            Log.d("AuthDataListener", "Sign in successful")
+                            WatchReminderScheduler.ensureScheduled(
+                                context = this@AuthDataListenerService,
+                                replace = true
+                            )
+                        } catch (e: Exception) {
+                            Log.e("AuthDataListener", "Sign in failed", e)
                         }
                     }
+                }
+
+                WearSettingsSyncContract.SETTINGS_PATH -> {
+                    val snapshot = WearSettingsStore.writeFromDataMap(this, dataMap)
+                    WatchReminderScheduler.ensureScheduled(
+                        context = this,
+                        intervalMins = snapshot.reminderIntervalMins,
+                        replace = true
+                    )
+                    WearTileUpdater.request(this)
                 }
             }
         }
