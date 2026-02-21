@@ -18,7 +18,6 @@ class WaterReminderWorker(
 
     override suspend fun doWork(): Result {
         val prefs = PreferenceManager(applicationContext)
-        val interval = prefs.intervalFlow.first()
         val sleepStart = prefs.sleepStartFlow.first()
         val sleepEnd = prefs.sleepEndFlow.first()
         
@@ -46,7 +45,7 @@ class WaterReminderWorker(
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Modern API: Channel creation is required and supported directly
-        val channel = NotificationChannel(channelId, "Water Reminder", NotificationManager.IMPORTANCE_HIGH)
+        val channel = NotificationChannel(channelId, "Water Reminder", NotificationManager.IMPORTANCE_DEFAULT)
         manager.createNotificationChannel(channel)
 
         // We will need a broadcast receiver in the app module to handle the "Drank Water" action
@@ -65,8 +64,9 @@ class WaterReminderWorker(
             .setSmallIcon(com.hora.vellam.core.R.drawable.ic_logo)
             .setContentTitle("Drink Water!")
             .setContentText("It's time to hydrate. Stay healthy!")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .addAction(android.R.drawable.ic_menu_edit, "I Drank", drankPendingIntent)
+            .setOnlyAlertOnce(true)
             .setAutoCancel(true)
             .build()
 

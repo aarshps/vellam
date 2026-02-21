@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.hora.vellam.core.data.UserSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -64,6 +65,18 @@ class PreferenceManager(private val context: Context) {
 
     suspend fun setIntakeAmount(amount: Int) {
         context.dataStore.edit { it[INTAKE_AMOUNT_KEY] = amount }
+    }
+
+    suspend fun applyRemoteSettings(settings: UserSettings) {
+        context.dataStore.edit {
+            it[DAILY_GOAL_KEY] = settings.dailyGoalMl
+            it[INTAKE_AMOUNT_KEY] = settings.intakeAmountMl
+            it[INTERVAL_KEY] = settings.reminderIntervalMins
+            it[SLEEP_START_KEY] = settings.sleepStartTime
+            it[SLEEP_END_KEY] = settings.sleepEndTime
+            it[GOOGLE_SANS_KEY] = settings.useGoogleSans
+            it[APP_THEME_KEY] = settings.appTheme
+        }
     }
 
     suspend fun resetAllSettings() {

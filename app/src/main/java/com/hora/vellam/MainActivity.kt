@@ -61,6 +61,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.hora.vellam.ui.components.TimePickerDialog
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private lateinit var preferenceManager: PreferenceManager
@@ -125,6 +126,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val authManager = remember { AuthManager(context) }
+    val credentialManager = remember(context) { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
 
     Box(
@@ -138,8 +140,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                 onClick = {
                     scope.launch {
                         isLoading = true
-                        val credentialManager = CredentialManager.create(context)
-                        
+
                         val googleIdOption = GetGoogleIdOption.Builder()
                             .setFilterByAuthorizedAccounts(false)
                             .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com") 
@@ -163,10 +164,14 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                                 val idToken = googleIdTokenCredential.idToken
                                 authManager.signInWithGoogle(idToken)
+                                onLoginSuccess(idToken)
                                 
                                 // Sync with Watch
                                 com.hora.vellam.core.WearAuthHelper.sendTokenToWear(context, idToken)
                             }
+                        } catch (e: GoogleIdTokenParsingException) {
+                            Log.e("Login", "Invalid Google token payload", e)
+                            isLoading = false
                         } catch (e: Exception) {
                             Log.e("Login", "Sign in failed", e)
                             isLoading = false
@@ -188,7 +193,7 @@ fun VellamApp(
 ) {
     var currentTab by remember { mutableStateOf(0) } // 0=Home, 1=Settings, 2=History
     val context = androidx.compose.ui.platform.LocalContext.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val settingsFlow = remember(repo) { repo.getSettings() }
     
     val interval by prefs.intervalFlow.collectAsStateWithLifecycle(initialValue = 60)
     val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
@@ -198,11 +203,9 @@ fun VellamApp(
     val isGoogleSans by prefs.googleSansFlow.collectAsStateWithLifecycle(initialValue = true)
     val appTheme by prefs.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
 
-    val firestoreSettings by repo.getSettings().collectAsStateWithLifecycle(initialValue = null)
-
-    // Push local changes to Firestore
-    LaunchedEffect(interval, dailyGoal, intakeAmount, sleepStart, sleepEnd, isGoogleSans, appTheme) {
-        repo.updateSettings(com.hora.vellam.core.data.UserSettings(
+    val firestoreSettings by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
+    val localSettings = remember(interval, dailyGoal, intakeAmount, sleepStart, sleepEnd, isGoogleSans, appTheme) {
+        com.hora.vellam.core.data.UserSettings(
             dailyGoalMl = dailyGoal,
             intakeAmountMl = intakeAmount,
             reminderIntervalMins = interval,
@@ -210,20 +213,30 @@ fun VellamApp(
             sleepEndTime = sleepEnd,
             useGoogleSans = isGoogleSans,
             appTheme = appTheme
-        ))
+        )
     }
+    var observedRemoteSettings by remember { mutableStateOf<com.hora.vellam.core.data.UserSettings?>(null) }
 
-    // Pull remote changes to local DataStore
-    LaunchedEffect(firestoreSettings) {
-        firestoreSettings?.let { fs ->
-            if (fs.dailyGoalMl != dailyGoal) prefs.setDailyGoal(fs.dailyGoalMl)
-            if (fs.intakeAmountMl != intakeAmount) prefs.setIntakeAmount(fs.intakeAmountMl)
-            if (fs.reminderIntervalMins != interval) prefs.setInterval(fs.reminderIntervalMins)
-            if (fs.sleepStartTime != sleepStart || fs.sleepEndTime != sleepEnd) {
-                prefs.setSleepTimes(fs.sleepStartTime, fs.sleepEndTime)
+    // Keep phone settings in sync without write loops or startup churn.
+    LaunchedEffect(localSettings, firestoreSettings) {
+        val remote = firestoreSettings ?: return@LaunchedEffect
+
+        // Remote changed: mirror it locally and skip immediate pushback.
+        if (remote != observedRemoteSettings) {
+            observedRemoteSettings = remote
+            if (remote != localSettings) {
+                prefs.applyRemoteSettings(remote)
             }
-            if (fs.useGoogleSans != isGoogleSans) prefs.setGoogleSans(fs.useGoogleSans)
-            if (fs.appTheme != appTheme) prefs.setAppTheme(fs.appTheme)
+            return@LaunchedEffect
+        }
+
+        // Local changed: push to cloud (debounced) only when different from current remote.
+        if (remote != localSettings) {
+            // Debounce rapid UI updates (e.g. slider drags) into one network write.
+            kotlinx.coroutines.delay(350)
+            if (firestoreSettings == remote && remote != localSettings) {
+                repo.updateSettings(localSettings)
+            }
         }
     }
 
@@ -239,19 +252,13 @@ fun VellamApp(
             NavigationBar {
                 NavigationBarItem(
                     selected = currentTab == 0,
-                    onClick = { 
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                        navigateTo(0) 
-                    },
+                    onClick = { navigateTo(0) },
                     icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
                     label = { Text("Home") }
                 )
                 NavigationBarItem(
                     selected = currentTab == 1,
-                    onClick = { 
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                        navigateTo(1) 
-                    },
+                    onClick = { navigateTo(1) },
                     icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
                     label = { Text("Settings") }
                 )
@@ -276,19 +283,19 @@ fun VellamApp(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
-    val dailyTotal by repo.getTodayIntake().collectAsStateWithLifecycle(initialValue = 0)
+    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
+    val dailyTotal by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
     val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
     val intakeAmount by prefs.intakeAmountFlow.collectAsStateWithLifecycle(initialValue = 250)
     
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     // Animations
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = (dailyTotal / dailyGoal.toFloat()).coerceIn(0f, 1f),
         label = "ProgressAnimation",
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     )
 
     // Button Interaction
@@ -308,9 +315,8 @@ fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
         onRefresh = {
             scope.launch {
                 isRefreshing = true
-                kotlinx.coroutines.delay(1000)
+                kotlinx.coroutines.delay(200)
                 isRefreshing = false
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             }
         },
         modifier = Modifier.fillMaxSize()
@@ -373,7 +379,6 @@ fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
             Button(
                 onClick = { 
                     vibrateSwallow(context)
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                     scope.launch {
                         repo.addWaterIntake(intakeAmount)
                     }
@@ -415,8 +420,10 @@ fun SettingsScreen(
     val appTheme by prefs.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
     
     val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
     val haptic = LocalHapticFeedback.current
+    var intervalDraft by remember(interval) { mutableStateOf(interval.toFloat()) }
+    var dailyGoalDraft by remember(dailyGoal) { mutableStateOf(dailyGoal.toFloat()) }
+    var intakeAmountDraft by remember(intakeAmount) { mutableStateOf(intakeAmount.toFloat()) }
     
     // Time Picker State
     var showTimePicker by remember { mutableStateOf(false) }
@@ -466,11 +473,15 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Interval: $interval mins", style = MaterialTheme.typography.labelLarge)
                         Slider(
-                            value = interval.toFloat(),
+                            value = intervalDraft,
                             onValueChange = { 
-                                val newInt = it.toInt()
+                                val snapped = it.roundToInt().coerceIn(15, 120)
+                                intervalDraft = snapped.toFloat()
+                            },
+                            onValueChangeFinished = {
+                                val newInt = intervalDraft.roundToInt()
                                 if (newInt != interval) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch { prefs.setInterval(newInt) }
                                 }
                             },
@@ -494,11 +505,15 @@ fun SettingsScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Daily Goal: $dailyGoal ml", style = MaterialTheme.typography.labelLarge)
                         Slider(
-                            value = dailyGoal.toFloat(),
+                            value = dailyGoalDraft,
                             onValueChange = { 
-                                val newInt = it.toInt()
+                                val snapped = ((it / 100f).roundToInt() * 100).coerceIn(1000, 4000)
+                                dailyGoalDraft = snapped.toFloat()
+                            },
+                            onValueChangeFinished = {
+                                val newInt = dailyGoalDraft.roundToInt()
                                 if (newInt != dailyGoal) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch { prefs.setDailyGoal(newInt) }
                                 }
                             },
@@ -510,11 +525,15 @@ fun SettingsScreen(
                         
                         Text("Drink Amount: $intakeAmount ml", style = MaterialTheme.typography.labelLarge)
                         Slider(
-                            value = intakeAmount.toFloat(),
+                            value = intakeAmountDraft,
                             onValueChange = { 
-                                val newInt = it.toInt()
+                                val snapped = ((it / 50f).roundToInt() * 50).coerceIn(50, 500)
+                                intakeAmountDraft = snapped.toFloat()
+                            },
+                            onValueChangeFinished = {
+                                val newInt = intakeAmountDraft.roundToInt()
                                 if (newInt != intakeAmount) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch { prefs.setIntakeAmount(newInt) }
                                 }
                             },
@@ -610,19 +629,40 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
-    val history by repo.getHistory().collectAsStateWithLifecycle(initialValue = emptyList())
+    val historyFlow = remember(repo) { repo.getHistory() }
+    val history by historyFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
 
     val groupedHistory = remember(history) {
-        history.groupBy { 
-            java.time.LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochSecond(it.timestamp.seconds, it.timestamp.nanoseconds.toLong()),
-                java.time.ZoneId.systemDefault()
-            ).toLocalDate()
-        }
+        val today = java.time.LocalDate.now()
+        val yesterday = today.minusDays(1)
+        history
+            .groupBy {
+                java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochSecond(it.timestamp.seconds, it.timestamp.nanoseconds.toLong()),
+                    java.time.ZoneId.systemDefault()
+                ).toLocalDate()
+            }
+            .toSortedMap(compareByDescending { it })
+            .map { (date, entries) ->
+                val dateLabel = when (date) {
+                    today -> "Today"
+                    yesterday -> "Yesterday"
+                    else -> date.format(java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+                }
+                val rows = entries.map { entry ->
+                    val timestamp = java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochSecond(entry.timestamp.seconds, entry.timestamp.nanoseconds.toLong()),
+                        java.time.ZoneId.systemDefault()
+                    )
+                    val timeStr = java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(timestamp)
+                    Triple(entry.id, "${entry.amountMl} ml", timeStr)
+                }
+                dateLabel to rows
+            }
     }
 
     PullToRefreshBox(
@@ -631,7 +671,7 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
         onRefresh = {
             scope.launch {
                 isRefreshing = true
-                kotlinx.coroutines.delay(1000)
+                kotlinx.coroutines.delay(200)
                 isRefreshing = false
             }
         },
@@ -656,27 +696,17 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-            groupedHistory.forEach { (date, items) ->
+            groupedHistory.forEach { (dateLabel, rows) ->
                 item {
-                    val dateStr = when (date) {
-                        java.time.LocalDate.now() -> "Today"
-                        java.time.LocalDate.now().minusDays(1) -> "Yesterday"
-                        else -> date.format(java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy"))
-                    }
                     Text(
-                        text = dateStr,
+                        text = dateLabel,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)
                     )
                 }
 
-                items(items, key = { it.id }) { item ->
-                    val timestamp = java.time.LocalDateTime.ofInstant(
-                        java.time.Instant.ofEpochSecond(item.timestamp.seconds, item.timestamp.nanoseconds.toLong()),
-                        java.time.ZoneId.systemDefault()
-                    )
-                    val timeStr = java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(timestamp)
+                items(rows, key = { it.first }) { row ->
                     
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -685,13 +715,13 @@ fun HistoryScreen(repo: FirestoreRepository, onBack: () -> Unit) {
                     ) {
                          com.hora.vellam.ui.components.ExpressiveSettingsItem(
                             icon = Icons.Rounded.WaterDrop,
-                            title = "${item.amountMl} ml",
-                            subtitle = timeStr,
+                            title = row.second,
+                            subtitle = row.third,
                             onClick = {},
                             trailing = {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        repo.deleteIntake(item.id)
+                                        repo.deleteIntake(row.first)
                                     }
                                 }) {
                                     Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

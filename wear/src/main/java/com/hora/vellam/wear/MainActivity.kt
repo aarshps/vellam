@@ -3,8 +3,6 @@ package com.hora.vellam.wear
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.wear.compose.material3.*
 import androidx.compose.runtime.*
@@ -72,8 +70,8 @@ class MainActivity : ComponentActivity() {
                 if (user == null) {
                      // Try Silent Sign In
                      val context = androidx.compose.ui.platform.LocalContext.current
+                     val credentialManager = remember(context) { CredentialManager.create(context) }
                      LaunchedEffect(Unit) {
-                         val credentialManager = CredentialManager.create(context)
                          val googleIdOption = GetGoogleIdOption.Builder()
                              .setFilterByAuthorizedAccounts(false)
                              .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
@@ -90,14 +88,14 @@ class MainActivity : ComponentActivity() {
                              if (credential is CustomCredential && 
                                  credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                                  val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                 launch {
-                                     try {
-                                         authManager.signInWithGoogle(googleIdTokenCredential.idToken)
-                                     } catch (e: Exception) {
-                                         Log.e("WearSilentAuth", "Firebase auth failed", e)
-                                     }
+                                 try {
+                                     authManager.signInWithGoogle(googleIdTokenCredential.idToken)
+                                 } catch (e: Exception) {
+                                     Log.e("WearSilentAuth", "Firebase auth failed", e)
                                  }
                              }
+                         } catch (e: GoogleIdTokenParsingException) {
+                             Log.e("WearSilentAuth", "Invalid Google token payload", e)
                          } catch (e: GetCredentialException) {
                              Log.e("WearSilentAuth", "Silent login failed", e)
                          }
@@ -115,6 +113,7 @@ class MainActivity : ComponentActivity() {
 fun LoginScreen(authManager: AuthManager) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val credentialManager = remember(context) { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
 
     Box(
@@ -135,7 +134,6 @@ fun LoginScreen(authManager: AuthManager) {
                     onClick = {
                         scope.launch {
                             isLoading = true
-                            val credentialManager = CredentialManager.create(context)
                             val googleIdOption = GetGoogleIdOption.Builder()
                                 .setFilterByAuthorizedAccounts(false)
                                 .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
@@ -154,6 +152,9 @@ fun LoginScreen(authManager: AuthManager) {
                                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                                     authManager.signInWithGoogle(googleIdTokenCredential.idToken)
                                 }
+                            } catch (e: GoogleIdTokenParsingException) {
+                                Log.e("WearLogin", "Invalid Google token payload", e)
+                                isLoading = false
                             } catch (e: Exception) {
                                 Log.e("WearLogin", "Google sign in failed", e)
                                 isLoading = false
@@ -172,18 +173,16 @@ fun LoginScreen(authManager: AuthManager) {
 @Composable
 fun WearApp(repo: FirestoreRepository) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val intake by repo.getTodayIntake().collectAsStateWithLifecycle(initialValue = 0)
-    val history by repo.getHistory().collectAsStateWithLifecycle(initialValue = emptyList())
-    val settings by repo.getSettings().collectAsStateWithLifecycle(initialValue = com.hora.vellam.core.data.UserSettings())
+    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
+    val historyFlow = remember(repo) { repo.getHistory() }
+    val settingsFlow = remember(repo) { repo.getSettings() }
+    val intake by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
+    val history by historyFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val settings by settingsFlow.collectAsStateWithLifecycle(initialValue = com.hora.vellam.core.data.UserSettings())
     val scope = rememberCoroutineScope()
     
     // Pager for Navigation (0=Main, 1=History, 2=Settings)
     val pagerState = androidx.wear.compose.foundation.pager.rememberPagerState(pageCount = { 3 })
-
-    // Haptic feedback on page change
-    LaunchedEffect(pagerState.currentPage) {
-        vibrateSmall(context)
-    }
 
     AppScaffold {
         androidx.wear.compose.foundation.pager.HorizontalPager(
@@ -300,10 +299,11 @@ fun MainScreen(
     scope: kotlinx.coroutines.CoroutineScope, 
     context: android.content.Context
 ) {
-    val progress = (intake / goal).coerceIn(0f, 1f)
+    val safeGoal = if (goal <= 0f) 1f else goal
+    val progress = (intake / safeGoal).coerceIn(0f, 1f)
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = progress,
-        animationSpec = androidx.compose.animation.core.tween(1000)
+        animationSpec = androidx.compose.animation.core.tween(500)
     )
 
     Box(
@@ -494,4 +494,3 @@ fun SettingsScreen(settings: com.hora.vellam.core.data.UserSettings) {
 fun vibrateSmall(context: Context) = com.hora.vellam.core.HapticManager.vibrateSmall(context)
 
 fun vibrateSwallow(context: Context) = com.hora.vellam.core.HapticManager.vibrateSwallow(context)
-

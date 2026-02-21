@@ -11,6 +11,8 @@ import com.google.firebase.firestore.PersistentCacheSettings
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.tasks.await
 
 class FirestoreRepository {
@@ -63,7 +65,7 @@ class FirestoreRepository {
             auth.removeAuthStateListener(authListener)
             firestoreReg?.remove()
         }
-    }
+    }.distinctUntilChanged().conflate()
 
     suspend fun updateSettings(settings: UserSettings) {
         val uid = auth.currentUser?.uid ?: return
@@ -119,7 +121,7 @@ class FirestoreRepository {
             auth.removeAuthStateListener(authListener)
             firestoreReg?.remove()
         }
-    }
+    }.distinctUntilChanged().conflate()
 
     fun getHistory(): Flow<List<WaterIntake>> = callbackFlow {
         var firestoreReg: ListenerRegistration? = null
@@ -150,5 +152,5 @@ class FirestoreRepository {
             auth.removeAuthStateListener(authListener)
             firestoreReg?.remove()
         }
-    }
+    }.distinctUntilChanged().conflate()
 }
