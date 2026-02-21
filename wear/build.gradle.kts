@@ -64,7 +64,7 @@ dependencies {
     // Tiles
     implementation(libs.androidx.wear.tiles)
     implementation(libs.androidx.wear.protolayout)
-    implementation(libs.androidx.wear.protolayout.material)
+    implementation(libs.androidx.wear.protolayout.material3)
     implementation("com.google.guava:guava:33.0.0-android")
 
     // Credential Manager

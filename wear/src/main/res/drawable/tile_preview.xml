@@ -2,14 +2,29 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="#0B57D0" />
+            <solid android:color="#0F141A" />
         </shape>
     </item>
-    <item android:gravity="center">
-        <shape android:shape="oval">
-            <size android:width="180dp" android:height="180dp" />
-            <solid android:color="#FFFFFF" />
+    <item android:gravity="top|center_horizontal" android:top="20dp">
+        <shape android:shape="rectangle">
+            <size
+                android:width="150dp"
+                android:height="102dp" />
+            <corners android:radius="32dp" />
+            <solid android:color="#242B35" />
         </shape>
     </item>
-    <item android:gravity="center" android:drawable="@drawable/ic_launcher_foreground" />
+    <item
+        android:gravity="center"
+        android:top="16dp"
+        android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:gravity="bottom|center_horizontal" android:bottom="12dp">
+        <shape android:shape="rectangle">
+            <size
+                android:width="154dp"
+                android:height="52dp" />
+            <corners android:radius="30dp" />
+            <solid android:color="#9CD0FF" />
+        </shape>
+    </item>
 </layer-list>

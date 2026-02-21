@@ -216,21 +216,6 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
 
     var isSaving by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val cloudSettings = runCatching { repo.getSettingsOnce() }.getOrNull()
-        if (cloudSettings != null) {
-            settings = WearSettingsStore.writeFromUserSettings(context, cloudSettings)
-            WearTileUpdater.request(context)
-        }
-        val cloudToday = runCatching { repo.getTodayIntakeOnce() }.getOrNull()
-        if (cloudToday != null) {
-            todayIntake = WearTodayIntakeStore.setTodayTotal(context, cloudToday).totalMl
-            WearTileUpdater.request(context)
-        } else {
-            todayIntake = WearTodayIntakeStore.read(context).totalMl
-        }
-    }
-
     DisposableEffect(settingsPrefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
             settings = WearSettingsStore.read(context)
@@ -263,13 +248,13 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(start = 14.dp, end = 14.dp, top = 42.dp, bottom = 8.dp)
+            .padding(start = 12.dp, end = 12.dp, top = 42.dp, bottom = 6.dp)
     ) {
         Card(
             onClick = {},
-            shape = RoundedCornerShape(40.dp),
+            shape = RoundedCornerShape(44.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -278,34 +263,34 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "Hydration Today",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
                         progress = { progress },
                         modifier = Modifier
-                            .fillMaxWidth(0.44f)
+                            .fillMaxWidth(0.42f)
                             .padding(2.dp),
                         strokeWidth = CircularProgressIndicatorDefaults.largeStrokeWidth,
-                        gapSize = 6.dp
+                        gapSize = 5.dp
                     )
                     Text(
                         text = "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "$todayIntake / $dailyGoalMl ml",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -334,8 +319,8 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
             enabled = !isSaving,
             buttonSize = EdgeButtonSize.Medium,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         ) {
             Text(if (isSaving) "Saving..." else "I Drank $intakeAmountMl ml")

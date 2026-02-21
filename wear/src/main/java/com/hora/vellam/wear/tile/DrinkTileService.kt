@@ -1,13 +1,24 @@
 package com.hora.vellam.wear.tile
 
+import android.content.ComponentName
 import androidx.wear.protolayout.ActionBuilders
-import androidx.wear.protolayout.ColorBuilders
-import androidx.wear.protolayout.DimensionBuilders
+import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.LayoutElementBuilders
-import androidx.wear.protolayout.ModifiersBuilders
+import androidx.wear.protolayout.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
+import androidx.wear.protolayout.LayoutElementBuilders.VERTICAL_ALIGN_CENTER
+import androidx.wear.protolayout.material3.CircularProgressIndicatorDefaults
+import androidx.wear.protolayout.material3.Typography
+import androidx.wear.protolayout.material3.circularProgressIndicator
+import androidx.wear.protolayout.material3.materialScope
+import androidx.wear.protolayout.material3.primaryLayout
+import androidx.wear.protolayout.material3.text
+import androidx.wear.protolayout.material3.textEdgeButton
+import androidx.wear.protolayout.modifiers.LayoutModifier
+import androidx.wear.protolayout.modifiers.clickable
+import androidx.wear.protolayout.modifiers.contentDescription
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
-import androidx.wear.protolayout.material.CircularProgressIndicator
+import androidx.wear.protolayout.types.LayoutString
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -19,7 +30,7 @@ import com.hora.vellam.wear.WearTodayIntakeStore
 
 class DrinkTileService : TileService() {
     companion object {
-        private const val RESOURCES_VERSION = "1"
+        private const val RESOURCES_VERSION = "2"
     }
 
     override fun onTileRequest(
@@ -32,193 +43,63 @@ class DrinkTileService : TileService() {
         val progress = (todayTotalMl / dailyGoalMl.toFloat()).coerceIn(0f, 1f)
         val progressPercent = (progress * 100f).toInt()
 
-        val launchAction = ActionBuilders.LaunchAction.Builder()
-            .setAndroidActivity(
-                ActionBuilders.AndroidActivity.Builder()
-                    .setPackageName(packageName)
-                    .setClassName(TileDrinkActivity::class.java.name)
-                    .build()
-            )
-            .build()
+        val drinkAction = clickable(
+            ActionBuilders.launchAction(
+                ComponentName(applicationContext, TileDrinkActivity::class.java)
+            ),
+            "drink_action"
+        )
 
-        val drinkClickable = ModifiersBuilders.Clickable.Builder()
-            .setId("drink_action")
-            .setOnClick(launchAction)
-            .build()
-
-        val root = LayoutElementBuilders.Box.Builder()
-            .setWidth(DimensionBuilders.expand())
-            .setHeight(DimensionBuilders.expand())
-            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-            .setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setBackground(
-                        ModifiersBuilders.Background.Builder()
-                            .setColor(ColorBuilders.argb(0xFF121520.toInt()))
-                            .setCorner(
-                                ModifiersBuilders.Corner.Builder()
-                                    .setRadius(DimensionBuilders.dp(30f))
-                                    .build()
+        val layout = materialScope(
+            context = applicationContext,
+            deviceConfiguration = requestParams.deviceConfiguration
+        ) {
+            primaryLayout(
+                titleSlot = {
+                    text(
+                        text = LayoutString("Hydration Today"),
+                        typography = Typography.TITLE_SMALL
+                    )
+                },
+                mainSlot = {
+                    LayoutElementBuilders.Box.Builder()
+                        .setWidth(expand())
+                        .setHeight(expand())
+                        .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
+                        .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
+                        .addContent(
+                            circularProgressIndicator(
+                                staticProgress = progress,
+                                strokeWidth = CircularProgressIndicatorDefaults.LARGE_STROKE_WIDTH,
+                                modifier = LayoutModifier.contentDescription("$progressPercent percent")
                             )
-                            .build()
+                        )
+                        .addContent(
+                            text(
+                                text = LayoutString("$progressPercent%"),
+                                typography = Typography.NUMERAL_MEDIUM
+                            )
+                        )
+                        .build()
+                },
+                labelForBottomSlot = {
+                    text(
+                        text = LayoutString("$todayTotalMl / $dailyGoalMl ml"),
+                        typography = Typography.BODY_SMALL
                     )
-                    .setPadding(
-                        ModifiersBuilders.Padding.Builder()
-                            .setStart(DimensionBuilders.dp(10f))
-                            .setEnd(DimensionBuilders.dp(10f))
-                            .setTop(DimensionBuilders.dp(10f))
-                            .setBottom(DimensionBuilders.dp(10f))
-                            .build()
-                    )
-                    .build()
+                },
+                bottomSlot = {
+                    textEdgeButton(onClick = drinkAction) {
+                        text(text = LayoutString("I Drank $intakeAmountMl ml"))
+                    }
+                }
             )
-            .addContent(
-                LayoutElementBuilders.Column.Builder()
-                    .setWidth(DimensionBuilders.expand())
-                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                    .addContent(
-                        LayoutElementBuilders.Box.Builder()
-                            .setWidth(DimensionBuilders.expand())
-                            .setModifiers(
-                                ModifiersBuilders.Modifiers.Builder()
-                                    .setBackground(
-                                        ModifiersBuilders.Background.Builder()
-                                            .setColor(ColorBuilders.argb(0xFF252B39.toInt()))
-                                            .setCorner(
-                                                ModifiersBuilders.Corner.Builder()
-                                                    .setRadius(DimensionBuilders.dp(24f))
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .setPadding(
-                                        ModifiersBuilders.Padding.Builder()
-                                            .setStart(DimensionBuilders.dp(10f))
-                                            .setEnd(DimensionBuilders.dp(10f))
-                                            .setTop(DimensionBuilders.dp(10f))
-                                            .setBottom(DimensionBuilders.dp(10f))
-                                            .build()
-                                    )
-                                    .build()
-                            )
-                            .addContent(
-                                LayoutElementBuilders.Column.Builder()
-                                    .setWidth(DimensionBuilders.expand())
-                                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                                    .addContent(
-                                        LayoutElementBuilders.Text.Builder()
-                                            .setText("Hydration Today")
-                                            .setFontStyle(
-                                                LayoutElementBuilders.FontStyle.Builder()
-                                                    .setSize(DimensionBuilders.sp(13f))
-                                                    .setColor(ColorBuilders.argb(0xFFD7E3FF.toInt()))
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .addContent(
-                                        LayoutElementBuilders.Box.Builder()
-                                            .setWidth(DimensionBuilders.dp(56f))
-                                            .setHeight(DimensionBuilders.dp(56f))
-                                            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                                            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                                            .addContent(
-                                                CircularProgressIndicator.Builder()
-                                                    .setProgress(progress)
-                                                    .setStrokeWidth(DimensionBuilders.dp(5f))
-                                                    .build()
-                                            )
-                                            .addContent(
-                                                LayoutElementBuilders.Text.Builder()
-                                                    .setText("$progressPercent%")
-                                                    .setFontStyle(
-                                                        LayoutElementBuilders.FontStyle.Builder()
-                                                            .setSize(DimensionBuilders.sp(12f))
-                                                            .setColor(ColorBuilders.argb(0xFFE7EDFF.toInt()))
-                                                            .build()
-                                                    )
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .addContent(
-                                        LayoutElementBuilders.Text.Builder()
-                                            .setText("$todayTotalMl / $dailyGoalMl ml")
-                                            .setFontStyle(
-                                                LayoutElementBuilders.FontStyle.Builder()
-                                                    .setSize(DimensionBuilders.sp(10f))
-                                                    .setColor(ColorBuilders.argb(0xFFC8D2E8.toInt()))
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .build()
-                            )
-                            .build()
-                    )
-                    .addContent(
-                        LayoutElementBuilders.Box.Builder()
-                            .setWidth(DimensionBuilders.expand())
-                            .setModifiers(
-                                ModifiersBuilders.Modifiers.Builder()
-                                    .setPadding(
-                                        ModifiersBuilders.Padding.Builder()
-                                            .setTop(DimensionBuilders.dp(8f))
-                                            .build()
-                                    )
-                                    .build()
-                            )
-                            .addContent(
-                                LayoutElementBuilders.Box.Builder()
-                                    .setWidth(DimensionBuilders.expand())
-                                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                                    .setModifiers(
-                                        ModifiersBuilders.Modifiers.Builder()
-                                            .setClickable(drinkClickable)
-                                            .setBackground(
-                                                ModifiersBuilders.Background.Builder()
-                                                    .setColor(ColorBuilders.argb(0xFF8AC6FF.toInt()))
-                                                    .setCorner(
-                                                        ModifiersBuilders.Corner.Builder()
-                                                            .setRadius(DimensionBuilders.dp(28f))
-                                                            .build()
-                                                    )
-                                                    .build()
-                                            )
-                                            .setPadding(
-                                                ModifiersBuilders.Padding.Builder()
-                                                    .setStart(DimensionBuilders.dp(8f))
-                                                    .setEnd(DimensionBuilders.dp(8f))
-                                                    .setTop(DimensionBuilders.dp(10f))
-                                                    .setBottom(DimensionBuilders.dp(10f))
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .addContent(
-                                        LayoutElementBuilders.Text.Builder()
-                                            .setText("I Drank $intakeAmountMl ml")
-                                            .setFontStyle(
-                                                LayoutElementBuilders.FontStyle.Builder()
-                                                    .setSize(DimensionBuilders.sp(13f))
-                                                    .setColor(ColorBuilders.argb(0xFF0D1A2D.toInt()))
-                                                    .build()
-                                            )
-                                            .build()
-                                    )
-                                    .build()
-                            )
-                            .build()
-                    )
-                    .build()
-            )
-            .build()
+        }
 
         val tile = TileBuilders.Tile.Builder()
             .setResourcesVersion(RESOURCES_VERSION)
-            .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(root))
-            .setFreshnessIntervalMillis(30 * 60 * 1000L)
+            .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(layout))
+            .setFreshnessIntervalMillis(15 * 60 * 1000L)
             .build()
 
         return Futures.immediateFuture(tile)
