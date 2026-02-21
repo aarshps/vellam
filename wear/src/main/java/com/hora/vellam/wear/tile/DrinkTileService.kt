@@ -67,9 +67,7 @@ class DrinkTileService : TileService() {
             .addContent(
                 LayoutElementBuilders.Column.Builder()
                     .setWidth(DimensionBuilders.expand())
-                    .setHeight(DimensionBuilders.expand())
                     .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                    .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                     .addContent(
                         LayoutElementBuilders.Text.Builder()
                             .setText("I Drank")
