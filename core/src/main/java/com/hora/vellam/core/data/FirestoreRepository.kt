@@ -123,7 +123,7 @@ class FirestoreRepository {
         }
     }.distinctUntilChanged().conflate()
 
-    fun getHistory(): Flow<List<WaterIntake>> = callbackFlow {
+    fun getHistory(limit: Int? = null): Flow<List<WaterIntake>> = callbackFlow {
         var firestoreReg: ListenerRegistration? = null
 
         val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -135,9 +135,14 @@ class FirestoreRepository {
                 return@AuthStateListener
             }
 
-            firestoreReg = userIntakeCollection(user.uid)
+            var query: Query = userIntakeCollection(user.uid)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .addSnapshotListener { snapshot, e ->
+
+            if (limit != null && limit > 0) {
+                query = query.limit(limit.toLong())
+            }
+
+            firestoreReg = query.addSnapshotListener { snapshot, e ->
                     if (e != null) return@addSnapshotListener
                     val list = snapshot?.documents?.mapNotNull { doc ->
                         doc.toObject(WaterIntake::class.java)?.copy(id = doc.id)

@@ -1,59 +1,83 @@
 package com.hora.vellam.wear
 
+import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
-import androidx.wear.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.CircleShape
-import com.hora.vellam.core.auth.AuthManager
-import com.hora.vellam.core.data.FirestoreRepository
-import com.hora.vellam.wear.ui.theme.VellamWearTheme
-import kotlinx.coroutines.launch
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.WaterDrop
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Bedtime
-import androidx.compose.foundation.background
-import android.os.Vibrator
-import android.os.VibrationEffect
-import android.content.Context
-import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ProgressIndicatorDefaults
+import androidx.wear.compose.material3.Text
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.hora.vellam.core.auth.AuthManager
+import com.hora.vellam.core.data.FirestoreRepository
+import com.hora.vellam.core.data.UserSettings
+import com.hora.vellam.core.data.WaterIntake
+import com.hora.vellam.wear.ui.theme.VellamWearTheme
+import kotlinx.coroutines.launch
 
-import androidx.wear.compose.material3.ListHeader
-import androidx.wear.compose.material3.CircularProgressIndicator
-import androidx.wear.compose.material3.ProgressIndicatorDefaults
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.Icon
-import androidx.wear.compose.foundation.pager.rememberPagerState
-import androidx.wear.compose.foundation.pager.HorizontalPager
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.runtime.LaunchedEffect
+private enum class WearTab {
+    HOME,
+    HISTORY,
+    SETTINGS
+}
+
+private data class HistoryUiRow(
+    val id: String,
+    val amountLabel: String,
+    val timeLabel: String,
+    val dateHeader: String?
+)
 
 class MainActivity : ComponentActivity() {
     private lateinit var authManager: AuthManager
@@ -66,41 +90,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             VellamWearTheme {
                 val user by authManager.currentUser.collectAsStateWithLifecycle()
-                
+
                 if (user == null) {
-                     // Try Silent Sign In
-                     val context = androidx.compose.ui.platform.LocalContext.current
-                     val credentialManager = remember(context) { CredentialManager.create(context) }
-                     LaunchedEffect(Unit) {
-                         val googleIdOption = GetGoogleIdOption.Builder()
-                             .setFilterByAuthorizedAccounts(false)
-                             .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
-                             .setAutoSelectEnabled(true)
-                             .build()
-
-                         val request = GetCredentialRequest.Builder()
-                             .setCredentialOptions(listOf(googleIdOption))
-                             .build()
-
-                         try {
-                             val result = credentialManager.getCredential(context, request)
-                             val credential = result.credential
-                             if (credential is CustomCredential && 
-                                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                 try {
-                                     authManager.signInWithGoogle(googleIdTokenCredential.idToken)
-                                 } catch (e: Exception) {
-                                     Log.e("WearSilentAuth", "Firebase auth failed", e)
-                                 }
-                             }
-                         } catch (e: GoogleIdTokenParsingException) {
-                             Log.e("WearSilentAuth", "Invalid Google token payload", e)
-                         } catch (e: GetCredentialException) {
-                             Log.e("WearSilentAuth", "Silent login failed", e)
-                         }
-                     }
-                     LoginScreen(authManager)
+                    LoginScreen(authManager)
                 } else {
                     WearApp(firestoreRepository)
                 }
@@ -110,57 +102,103 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoginScreen(authManager: AuthManager) {
+private fun LoginScreen(authManager: AuthManager) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var silentAttempted by rememberSaveable { mutableStateOf(false) }
+
+    suspend fun requestGoogleIdToken(autoSelect: Boolean): String? {
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
+            .setAutoSelectEnabled(autoSelect)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .setCredentialOptions(listOf(googleIdOption))
+            .build()
+
+        return try {
+            val result = credentialManager.getCredential(context, request)
+            val credential = result.credential
+            if (credential is CustomCredential &&
+                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+            ) {
+                val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                googleCredential.idToken
+            } else {
+                null
+            }
+        } catch (e: GoogleIdTokenParsingException) {
+            Log.e("WearLogin", "Invalid Google token payload", e)
+            null
+        } catch (e: GetCredentialException) {
+            Log.e("WearLogin", "Credential request failed", e)
+            null
+        } catch (e: Exception) {
+            Log.e("WearLogin", "Unexpected sign in failure", e)
+            null
+        }
+    }
+
+    LaunchedEffect(silentAttempted) {
+        if (!silentAttempted) {
+            silentAttempted = true
+            val token = requestGoogleIdToken(autoSelect = true) ?: return@LaunchedEffect
+            try {
+                authManager.signInWithGoogle(token)
+            } catch (e: Exception) {
+                Log.e("WearLogin", "Silent Firebase auth failed", e)
+            }
+        }
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
             CircularProgressIndicator()
         } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
                 Text(
-                    "Sign In Required", 
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Vellam",
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Sign in to sync with phone",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(14.dp))
                 Button(
                     onClick = {
                         scope.launch {
+                            if (isLoading) return@launch
                             isLoading = true
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
-                                .setAutoSelectEnabled(false)
-                                .build()
-
-                            val request = GetCredentialRequest.Builder()
-                                .setCredentialOptions(listOf(googleIdOption))
-                                .build()
-
-                            try {
-                                val result = credentialManager.getCredential(context, request)
-                                val credential = result.credential
-                                if (credential is CustomCredential && 
-                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                    authManager.signInWithGoogle(googleIdTokenCredential.idToken)
-                                }
-                            } catch (e: GoogleIdTokenParsingException) {
-                                Log.e("WearLogin", "Invalid Google token payload", e)
+                            val token = requestGoogleIdToken(autoSelect = false)
+                            if (token == null) {
                                 isLoading = false
+                                return@launch
+                            }
+                            try {
+                                authManager.signInWithGoogle(token)
                             } catch (e: Exception) {
-                                Log.e("WearLogin", "Google sign in failed", e)
+                                Log.e("WearLogin", "Firebase auth failed", e)
                                 isLoading = false
                             }
                         }
-                    }
+                    },
+                    shape = RoundedCornerShape(26.dp)
                 ) {
                     Text("Google Sign In")
                 }
@@ -169,238 +207,332 @@ fun LoginScreen(authManager: AuthManager) {
     }
 }
 
-@OptIn(androidx.wear.compose.material3.ExperimentalWearMaterial3Api::class)
 @Composable
-fun WearApp(repo: FirestoreRepository) {
+private fun WearApp(repo: FirestoreRepository) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
-    val historyFlow = remember(repo) { repo.getHistory() }
-    val settingsFlow = remember(repo) { repo.getSettings() }
-    val intake by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
-    val history by historyFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val settings by settingsFlow.collectAsStateWithLifecycle(initialValue = com.hora.vellam.core.data.UserSettings())
     val scope = rememberCoroutineScope()
-    
-    // Pager for Navigation (0=Main, 1=History, 2=Settings)
-    val pagerState = androidx.wear.compose.foundation.pager.rememberPagerState(pageCount = { 3 })
+
+    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
+    val settingsFlow = remember(repo) { repo.getSettings() }
+    val historyFlow = remember(repo) { repo.getHistory(limit = 60) }
+
+    val intake by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
+    val settings by settingsFlow.collectAsStateWithLifecycle(initialValue = UserSettings())
+    val history by historyFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    var activeTab by rememberSaveable { mutableStateOf(WearTab.HOME) }
+    var isSavingIntake by rememberSaveable { mutableStateOf(false) }
 
     AppScaffold {
-        androidx.wear.compose.foundation.pager.HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            PageWrapper(
-                page = page,
-                intake = intake,
-                goal = settings.dailyGoalMl.toFloat(),
-                intakeAmount = settings.intakeAmountMl,
-                history = history,
-                settings = settings,
-                repo = repo,
-                scope = scope,
-                context = context
-            )
-        }
-    }
-}
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Crossfade(
+                targetState = activeTab,
+                animationSpec = tween(durationMillis = 220),
+                label = "WearTabTransition"
+            ) { tab ->
+                when (tab) {
+                    WearTab.HOME -> {
+                        HomeScreen(
+                            intake = intake,
+                            settings = settings,
+                            isSavingIntake = isSavingIntake,
+                            onDrink = {
+                                if (!isSavingIntake) {
+                                    isSavingIntake = true
+                                    scope.launch {
+                                        try {
+                                            repo.addWaterIntake(settings.intakeAmountMl)
+                                            vibrateSwallow(context)
+                                        } finally {
+                                            isSavingIntake = false
+                                        }
+                                    }
+                                }
+                            },
+                            onOpenHistory = {
+                                activeTab = WearTab.HISTORY
+                                vibrateSmall(context)
+                            },
+                            onOpenSettings = {
+                                activeTab = WearTab.SETTINGS
+                                vibrateSmall(context)
+                            }
+                        )
+                    }
 
-@Composable
-fun PageWrapper(
-    page: Int,
-    intake: Int,
-    goal: Float,
-    intakeAmount: Int,
-    history: List<com.hora.vellam.core.data.WaterIntake>,
-    settings: com.hora.vellam.core.data.UserSettings,
-    repo: FirestoreRepository,
-    scope: kotlinx.coroutines.CoroutineScope,
-    context: android.content.Context
-) {
-    when (page) {
-        0 -> MainScreen(
-            intake = intake, 
-            goal = goal,
-            intakeAmount = intakeAmount,
-            repo = repo,
-            scope = scope,
-            context = context
-        )
-        1 -> HistoryScreen(
-            history = history, 
-            onDelete = { id ->
-                scope.launch {
-                    repo.deleteIntake(id)
-                    vibrateSmall(context)
+                    WearTab.HISTORY -> {
+                        HistoryScreen(
+                            history = history,
+                            onDelete = { id ->
+                                scope.launch {
+                                    repo.deleteIntake(id)
+                                    vibrateSmall(context)
+                                }
+                            }
+                        )
+                    }
+
+                    WearTab.SETTINGS -> {
+                        SettingsScreen(settings = settings)
+                    }
                 }
             }
-        )
-        2 -> SettingsScreen(settings = settings)
-    }
-}
 
-
-
-@Composable
-fun DrinkButton(intakeAmount: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.88f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioHighBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
-        ),
-        label = "scale"
-    )
-
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = modifier
-            .fillMaxWidth(0.92f)
-            .height(76.dp)
-            .graphicsLayer(scaleX = scale, scaleY = scale),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = 48.dp, 
-            topEnd = 48.dp,
-            bottomStart = 28.dp, 
-            bottomEnd = 28.dp
-        ),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.WaterDrop,
-                contentDescription = "Drink",
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Drink ${intakeAmount}ml", 
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
+            BottomTabBar(
+                activeTab = activeTab,
+                onTabSelected = { tab ->
+                    if (tab != activeTab) {
+                        activeTab = tab
+                        vibrateSmall(context)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             )
         }
     }
 }
 
 @Composable
-fun MainScreen(
-    intake: Int, 
-    goal: Float, 
-    intakeAmount: Int, 
-    repo: FirestoreRepository, 
-    scope: kotlinx.coroutines.CoroutineScope, 
-    context: android.content.Context
+private fun HomeScreen(
+    intake: Int,
+    settings: UserSettings,
+    isSavingIntake: Boolean,
+    onDrink: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
-    val safeGoal = if (goal <= 0f) 1f else goal
-    val progress = (intake / safeGoal).coerceIn(0f, 1f)
-    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+    val safeGoal = settings.dailyGoalMl.coerceAtLeast(1)
+    val progress = (intake.toFloat() / safeGoal.toFloat()).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = androidx.compose.animation.core.tween(500)
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "HydrationProgress"
     )
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        // M3 Circular Progress - Edge Hugging Arc
-        CircularProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier.fillMaxSize(),
-            startAngle = 140f, 
-            endAngle = 40f,
-            strokeWidth = 12.dp, 
-            colors = ProgressIndicatorDefaults.colors(
-                indicatorColor = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-            )
-        )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120),
+        label = "DrinkButtonScale"
+    )
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "Today",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Text(
-                text = "$intake",
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "of ${goal.toInt()}ml",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
-            )
-        }
-
-        // Edge-hugging broad button (M3E Style)
-        DrinkButton(
-            intakeAmount = intakeAmount,
-            onClick = {
-                scope.launch {
-                    repo.addWaterIntake(intakeAmount)
-                    vibrateSwallow(context)
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp)
-        )
-    }
-}
-
-@Composable
-fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete: (String) -> Unit) {
-    val formattedHistory = remember(history) {
-        history.map { entry ->
-            val date = java.time.LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochSecond(entry.timestamp.seconds, entry.timestamp.nanoseconds.toLong()),
-                java.time.ZoneId.systemDefault()
-            )
-            val timeStr = java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(date)
-            entry to timeStr
-        }
-    }
-
-    androidx.wear.compose.foundation.lazy.ScalingLazyColumn(
+    ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         anchorType = androidx.wear.compose.foundation.lazy.ScalingLazyListAnchorType.ItemStart,
-        contentPadding = PaddingValues(top = 40.dp, bottom = 32.dp, start = 8.dp, end = 8.dp)
+        contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp, start = 10.dp, end = 10.dp)
     ) {
         item {
             ListHeader {
-                Text("History", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Hydration",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
-        
-        if (formattedHistory.isEmpty()) {
+
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp, bottomStart = 24.dp, bottomEnd = 24.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f))
+                    .padding(horizontal = 10.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { animatedProgress },
+                            modifier = Modifier.size(132.dp),
+                            strokeWidth = 12.dp,
+                            colors = ProgressIndicatorDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                            )
+                        )
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "$intake",
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "/ $safeGoal ml",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "${(animatedProgress * 100f).toInt()}% complete",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onDrink,
+                enabled = !isSavingIntake,
+                interactionSource = interactionSource,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .graphicsLayer(scaleX = scale, scaleY = scale),
+                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 22.dp, bottomEnd = 22.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Rounded.WaterDrop,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (isSavingIntake) "Saving..." else "Drink ${settings.intakeAmountMl} ml")
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onOpenHistory,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors()
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("History", style = MaterialTheme.typography.labelSmall)
+                }
+
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors()
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Settings", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryScreen(
+    history: List<WaterIntake>,
+    onDelete: (String) -> Unit
+) {
+    val historyRows = remember(history) {
+        val zone = java.time.ZoneId.systemDefault()
+        val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d")
+        val today = java.time.LocalDate.now()
+        val yesterday = today.minusDays(1)
+
+        var previousDate: java.time.LocalDate? = null
+        history.map { entry ->
+            val dateTime = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochSecond(entry.timestamp.seconds, entry.timestamp.nanoseconds.toLong()),
+                zone
+            )
+            val date = dateTime.toLocalDate()
+            val header = if (date != previousDate) {
+                previousDate = date
+                when (date) {
+                    today -> "Today"
+                    yesterday -> "Yesterday"
+                    else -> date.format(dateFormatter)
+                }
+            } else {
+                null
+            }
+            HistoryUiRow(
+                id = entry.id,
+                amountLabel = "${entry.amountMl} ml",
+                timeLabel = dateTime.format(timeFormatter),
+                dateHeader = header
+            )
+        }
+    }
+
+    ScalingLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        anchorType = androidx.wear.compose.foundation.lazy.ScalingLazyListAnchorType.ItemStart,
+        contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp, start = 8.dp, end = 8.dp)
+    ) {
+        item {
+            ListHeader {
+                Text(
+                    text = "History",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        if (historyRows.isEmpty()) {
             item {
                 Text(
-                    "No history", 
+                    text = "No entries yet",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         } else {
-            items(formattedHistory.size) { index ->
-                val (entry, timeStr) = formattedHistory[index]
+            items(historyRows.size) { index ->
+                val row = historyRows[index]
+
+                if (row.dateHeader != null) {
+                    Text(
+                        text = row.dateHeader,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
 
                 Button(
-                    onClick = { onDelete(entry.id) },
+                    onClick = { onDelete(row.id) },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.filledTonalButtonColors()
                 ) {
                     Row(
@@ -409,14 +541,18 @@ fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("${entry.amountMl} ml", style = MaterialTheme.typography.labelMedium)
-                            Text(timeStr, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            Text(row.amountLabel, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                row.timeLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
                         }
                         Icon(
-                            imageVector = Icons.Rounded.Delete,
+                            imageVector = androidx.compose.material.icons.Icons.Rounded.Delete,
                             contentDescription = "Delete",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -426,68 +562,176 @@ fun HistoryScreen(history: List<com.hora.vellam.core.data.WaterIntake>, onDelete
 }
 
 @Composable
-fun SettingsScreen(settings: com.hora.vellam.core.data.UserSettings) {
-    androidx.wear.compose.foundation.lazy.ScalingLazyColumn(
+private fun SettingsScreen(settings: UserSettings) {
+    ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         anchorType = androidx.wear.compose.foundation.lazy.ScalingLazyListAnchorType.ItemStart,
-        contentPadding = PaddingValues(top = 40.dp, bottom = 32.dp, start = 8.dp, end = 8.dp)
+        contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp, start = 8.dp, end = 8.dp)
     ) {
         item {
             ListHeader {
-                Text("Settings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
         item {
-            Button(
-                onClick = { /* Handled on Phone */ },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.filledTonalButtonColors()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Rounded.Notifications, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Goal", style = MaterialTheme.typography.labelMedium)
-                        Text("${settings.dailyGoalMl} ml", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-            }
+            ExpressiveInfoCard(
+                icon = androidx.compose.material.icons.Icons.Rounded.Notifications,
+                title = "Daily Goal",
+                value = "${settings.dailyGoalMl} ml"
+            )
         }
 
         item {
-            Button(
-                onClick = { /* Handled on Phone */ },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.filledTonalButtonColors()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Rounded.WaterDrop, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Intake", style = MaterialTheme.typography.labelMedium)
-                        Text("${settings.intakeAmountMl} ml", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-            }
+            ExpressiveInfoCard(
+                icon = androidx.compose.material.icons.Icons.Rounded.WaterDrop,
+                title = "Drink Amount",
+                value = "${settings.intakeAmountMl} ml"
+            )
         }
 
         item {
-            Button(
-                onClick = { /* Handled on Phone */ },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.filledTonalButtonColors()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Rounded.Bedtime, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("Sleep", style = MaterialTheme.typography.labelMedium)
-                        Text("${settings.sleepStartTime} - ${settings.sleepEndTime}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    }
+            ExpressiveInfoCard(
+                icon = androidx.compose.material.icons.Icons.Rounded.Bedtime,
+                title = "Sleep Window",
+                value = "${settings.sleepStartTime} - ${settings.sleepEndTime}"
+            )
+        }
+
+        item {
+            ExpressiveInfoCard(
+                icon = androidx.compose.material.icons.Icons.Rounded.Settings,
+                title = "Theme",
+                value = when (settings.appTheme) {
+                    1 -> "Light"
+                    2 -> "Dark"
+                    else -> "System"
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpressiveInfoCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun BottomTabBar(
+    activeTab: WearTab,
+    onTabSelected: (WearTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BottomTabButton(
+            tab = WearTab.HOME,
+            activeTab = activeTab,
+            label = "Home",
+            icon = androidx.compose.material.icons.Icons.Rounded.Home,
+            onTabSelected = onTabSelected
+        )
+        BottomTabButton(
+            tab = WearTab.HISTORY,
+            activeTab = activeTab,
+            label = "Logs",
+            icon = androidx.compose.material.icons.Icons.Rounded.History,
+            onTabSelected = onTabSelected
+        )
+        BottomTabButton(
+            tab = WearTab.SETTINGS,
+            activeTab = activeTab,
+            label = "Prefs",
+            icon = androidx.compose.material.icons.Icons.Rounded.Settings,
+            onTabSelected = onTabSelected
+        )
+    }
+}
+
+@Composable
+private fun BottomTabButton(
+    tab: WearTab,
+    activeTab: WearTab,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onTabSelected: (WearTab) -> Unit
+) {
+    val selected = tab == activeTab
+
+    Button(
+        onClick = { onTabSelected(tab) },
+        modifier = Modifier
+            .weight(1f)
+            .height(42.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = if (selected) {
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            ButtonDefaults.filledTonalButtonColors()
+        }
+    ) {
+        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(14.dp))
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall)
     }
 }
 
