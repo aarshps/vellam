@@ -1,15 +1,15 @@
 package com.hora.vellam.wear.tile
 
-import androidx.wear.tiles.ActionBuilders
-import androidx.wear.tiles.ColorBuilders
-import androidx.wear.tiles.DimensionBuilders
-import androidx.wear.tiles.LayoutElementBuilders
-import androidx.wear.tiles.ModifiersBuilders
+import androidx.wear.protolayout.ActionBuilders
+import androidx.wear.protolayout.ColorBuilders
+import androidx.wear.protolayout.DimensionBuilders
+import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.ModifiersBuilders
+import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.RequestBuilders
-import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
-import androidx.wear.tiles.TimelineBuilders
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.hora.vellam.wear.TileDrinkActivity
@@ -96,19 +96,14 @@ class DrinkTileService : TileService() {
 
         val tile = TileBuilders.Tile.Builder()
             .setResourcesVersion(RESOURCES_VERSION)
-            .setTimeline(
-                TimelineBuilders.Timeline.Builder()
-                    .addTimelineEntry(TimelineBuilders.TimelineEntry.fromLayoutElement(root))
-                    .build()
-            )
+            .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(root))
             .setFreshnessIntervalMillis(30 * 60 * 1000L)
             .build()
 
         return Futures.immediateFuture(tile)
     }
 
-    @Suppress("DEPRECATION")
-    override fun onResourcesRequest(
+    override fun onTileResourcesRequest(
         requestParams: RequestBuilders.ResourcesRequest
     ): ListenableFuture<ResourceBuilders.Resources> {
         return Futures.immediateFuture(
