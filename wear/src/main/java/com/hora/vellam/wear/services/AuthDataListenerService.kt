@@ -6,7 +6,7 @@ import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.WearableListenerService
 import com.hora.vellam.core.auth.AuthManager
-import com.hora.vellam.wear.MainActivity
+import com.hora.vellam.wear.WatchReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,7 +38,10 @@ class AuthDataListenerService : WearableListenerService() {
                             try {
                                 authManager.signInWithGoogle(token)
                                 Log.d("AuthDataListener", "Sign in successful")
-                                // Optional: Start Activity if needed, but UI updates via AuthManager state usually suffice
+                                WatchReminderScheduler.ensureScheduled(
+                                    context = this@AuthDataListenerService,
+                                    replace = true
+                                )
                             } catch (e: Exception) {
                                 Log.e("AuthDataListener", "Sign in failed", e)
                             }

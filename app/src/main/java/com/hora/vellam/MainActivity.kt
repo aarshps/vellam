@@ -15,10 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.hora.vellam.ui.theme.VellamTheme
 import com.hora.vellam.core.PreferenceManager
+import com.hora.vellam.core.WaterReminderScheduler
 import com.hora.vellam.core.auth.AuthManager
 import com.hora.vellam.core.data.FirestoreRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.media.MediaPlayer
 import android.os.Vibrator
@@ -59,9 +62,12 @@ import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import com.hora.vellam.ui.components.TimePickerDialog
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
     private lateinit var preferenceManager: PreferenceManager
@@ -72,6 +78,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         preferenceManager = PreferenceManager(this)
         authManager = AuthManager(this)
+        syncWearAuthIfSignedIn()
         
         setupReminders()
 
@@ -108,16 +115,27 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupReminders() {
-        val workManager = androidx.work.WorkManager.getInstance(this)
-        val request = androidx.work.PeriodicWorkRequestBuilder<com.hora.vellam.core.WaterReminderWorker>(
-            60, java.util.concurrent.TimeUnit.MINUTES
-        ).build()
-        
-        workManager.enqueueUniquePeriodicWork(
-            "water_reminder",
-            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
+        lifecycleScope.launch {
+            WaterReminderScheduler.schedule(
+                context = this@MainActivity,
+                intervalMins = preferenceManager.intervalFlow.first()
+            )
+        }
+    }
+
+    private fun syncWearAuthIfSignedIn() {
+        lifecycleScope.launch {
+            try {
+                val user = Firebase.auth.currentUser ?: return@launch
+                val token = user.getIdToken(false).await().token ?: return@launch
+                com.hora.vellam.core.WearAuthHelper.sendTokenToWear(
+                    context = this@MainActivity,
+                    token = token
+                )
+            } catch (e: Exception) {
+                Log.w("WearAuthSync", "Token sync to watch skipped", e)
+            }
+        }
     }
 }
 
@@ -245,6 +263,10 @@ fun VellamApp(
             currentTab = tab
             vibrateSmall(context)
         }
+    }
+
+    LaunchedEffect(interval) {
+        WaterReminderScheduler.schedule(context, interval)
     }
 
     Scaffold(

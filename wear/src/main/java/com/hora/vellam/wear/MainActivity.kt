@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,8 +42,6 @@ import com.hora.vellam.core.data.FirestoreRepository
 import com.hora.vellam.wear.ui.theme.VellamWearTheme
 import kotlinx.coroutines.launch
 
-private const val DEFAULT_WATCH_INTAKE_ML = 250
-
 class MainActivity : ComponentActivity() {
     private lateinit var authManager: AuthManager
     private val firestoreRepository = FirestoreRepository()
@@ -50,6 +49,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authManager = AuthManager(this)
+        WatchReminderScheduler.ensureScheduled(this)
 
         setContent {
             VellamWearTheme {
@@ -75,7 +75,7 @@ private fun LoginScreen(authManager: AuthManager) {
 
     suspend fun requestGoogleIdToken(autoSelect: Boolean): String? {
         val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
+            .setFilterByAuthorizedAccounts(autoSelect)
             .setServerClientId("1051691694392-mqhhd8k6ufp1jfntuihjid5bofm4rlfe.apps.googleusercontent.com")
             .setAutoSelectEnabled(autoSelect)
             .build()
@@ -167,9 +167,26 @@ private fun LoginScreen(authManager: AuthManager) {
 private fun DrinkDoneScreen(repo: FirestoreRepository) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    var intakeAmountMl by rememberSaveable { mutableIntStateOf(250) }
+    var reminderInterval by rememberSaveable { mutableIntStateOf(60) }
 
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var statusText by rememberSaveable { mutableStateOf("Tap to log water") }
+
+    LaunchedEffect(Unit) {
+        val settings = runCatching { repo.getSettingsOnce() }.getOrNull()
+        intakeAmountMl = settings?.intakeAmountMl?.coerceAtLeast(1) ?: 250
+        reminderInterval =
+            WatchReminderScheduler.sanitizeInterval(settings?.reminderIntervalMins ?: 60)
+    }
+
+    LaunchedEffect(reminderInterval) {
+        WatchReminderScheduler.ensureScheduled(
+            context = context,
+            intervalMins = reminderInterval,
+            replace = true
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -186,7 +203,7 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                     statusText = "Saving..."
                     scope.launch {
                         try {
-                            repo.addWaterIntake(DEFAULT_WATCH_INTAKE_ML)
+                            repo.addWaterIntake(intakeAmountMl)
                             vibrateSwallow(context)
                             statusText = "Done"
                         } catch (e: Exception) {
@@ -200,7 +217,7 @@ private fun DrinkDoneScreen(repo: FirestoreRepository) {
                 enabled = !isSaving,
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Text(if (isSaving) "Saving..." else "I Drank")
+                Text(if (isSaving) "Saving..." else "I Drank $intakeAmountMl ml")
             }
 
             Spacer(modifier = Modifier.height(10.dp))

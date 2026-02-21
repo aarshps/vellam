@@ -72,6 +72,15 @@ class FirestoreRepository {
         userDocument(uid).set(settings).await()
     }
 
+    suspend fun getSettingsOnce(): UserSettings? {
+        val uid = auth.currentUser?.uid ?: return null
+        return try {
+            userDocument(uid).get().await().toObject(UserSettings::class.java) ?: UserSettings()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun addWaterIntake(amountMl: Int) {
         val uid = auth.currentUser?.uid ?: return
         val intake = WaterIntake(
