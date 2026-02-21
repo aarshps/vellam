@@ -9,6 +9,7 @@ import com.hora.vellam.core.WearSettingsSyncContract
 import com.hora.vellam.core.auth.AuthManager
 import com.hora.vellam.wear.WearSettingsStore
 import com.hora.vellam.wear.WearTileUpdater
+import com.hora.vellam.wear.WearTodayIntakeStore
 import com.hora.vellam.wear.WatchReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +62,21 @@ class AuthDataListenerService : WearableListenerService() {
                         intervalMins = snapshot.reminderIntervalMins,
                         replace = true
                     )
+                    WearTileUpdater.request(this)
+                }
+
+                WearSettingsSyncContract.TODAY_INTAKE_PATH -> {
+                    val dayKey = dataMap.getString(WearSettingsSyncContract.KEY_DAY_KEY)
+                    val todayKey = WearTodayIntakeStore.currentDayKey()
+                    if (!dayKey.isNullOrBlank() && dayKey == todayKey) {
+                        WearTodayIntakeStore.setTodayTotal(
+                            context = this,
+                            totalMl = dataMap.getInt(WearSettingsSyncContract.KEY_TODAY_TOTAL_ML, 0)
+                        )
+                    } else {
+                        // Ignore stale day snapshots and let local day rollover logic normalize state.
+                        WearTodayIntakeStore.read(this)
+                    }
                     WearTileUpdater.request(this)
                 }
             }

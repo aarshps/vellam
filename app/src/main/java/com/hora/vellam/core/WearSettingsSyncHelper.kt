@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.hora.vellam.core.data.UserSettings
+import java.time.LocalDate
 import kotlinx.coroutines.tasks.await
 
 object WearSettingsSyncHelper {
@@ -40,6 +41,33 @@ object WearSettingsSyncHelper {
             Wearable.getDataClient(context).putDataItem(request).await()
         } catch (e: Exception) {
             Log.w("WearSettingsSync", "Settings sync to watch failed", e)
+        }
+    }
+
+    suspend fun sendTodayIntakeToWear(
+        context: Context,
+        todayTotalMl: Int,
+        dayKey: String = LocalDate.now().toString()
+    ) {
+        try {
+            val putDataMapRequest = PutDataMapRequest.create(WearSettingsSyncContract.TODAY_INTAKE_PATH)
+            putDataMapRequest.dataMap.putLong(
+                WearSettingsSyncContract.KEY_TIMESTAMP,
+                System.currentTimeMillis()
+            )
+            putDataMapRequest.dataMap.putString(
+                WearSettingsSyncContract.KEY_DAY_KEY,
+                dayKey
+            )
+            putDataMapRequest.dataMap.putInt(
+                WearSettingsSyncContract.KEY_TODAY_TOTAL_ML,
+                todayTotalMl.coerceAtLeast(0)
+            )
+
+            val request = putDataMapRequest.asPutDataRequest().setUrgent()
+            Wearable.getDataClient(context).putDataItem(request).await()
+        } catch (e: Exception) {
+            Log.w("WearSettingsSync", "Today intake sync to watch failed", e)
         }
     }
 }

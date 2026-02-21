@@ -208,6 +208,7 @@ fun VellamApp(
     var currentTab by remember { mutableStateOf(0) } // 0=Home, 1=Settings, 2=History
     val context = androidx.compose.ui.platform.LocalContext.current
     val settingsFlow = remember(repo) { repo.getSettings().map { it as com.hora.vellam.core.data.UserSettings? } }
+    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
     
     val interval by prefs.intervalFlow.collectAsStateWithLifecycle(initialValue = 60)
     val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
@@ -218,6 +219,7 @@ fun VellamApp(
     val appTheme by prefs.themeFlow.collectAsStateWithLifecycle(initialValue = 0)
 
     val firestoreSettings by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
+    val todayIntake by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
     val localSettings = remember(interval, dailyGoal, intakeAmount, sleepStart, sleepEnd, isGoogleSans, appTheme) {
         UserSettings(
             dailyGoalMl = dailyGoal,
@@ -231,6 +233,7 @@ fun VellamApp(
     }
     var observedRemoteSettings by remember { mutableStateOf<UserSettings?>(null) }
     var lastSentToWear by remember { mutableStateOf<UserSettings?>(null) }
+    var lastSentTodayIntakeToWear by remember { mutableStateOf<Int?>(null) }
 
     // Keep phone settings in sync without write loops or startup churn.
     LaunchedEffect(localSettings, firestoreSettings) {
@@ -260,6 +263,17 @@ fun VellamApp(
         if (localSettings != lastSentToWear) {
             WearSettingsSyncHelper.sendSettingsToWear(context, localSettings)
             lastSentToWear = localSettings
+        }
+    }
+
+    // Keep watch progress in sync with phone side history mutations (add/delete).
+    LaunchedEffect(todayIntake) {
+        if (todayIntake != lastSentTodayIntakeToWear) {
+            WearSettingsSyncHelper.sendTodayIntakeToWear(
+                context = context,
+                todayTotalMl = todayIntake
+            )
+            lastSentTodayIntakeToWear = todayIntake
         }
     }
 
@@ -298,7 +312,12 @@ fun VellamApp(
                 label = "TabTransition"
             ) { tab ->
                 when (tab) {
-                    0 -> HomeScreen(prefs, repo)
+                    0 -> HomeScreen(
+                        repo = repo,
+                        dailyTotal = todayIntake,
+                        dailyGoal = dailyGoal,
+                        intakeAmount = intakeAmount
+                    )
                     1 -> SettingsScreen(prefs, authManager, onNavigateHistory = { navigateTo(2) })
                     2 -> HistoryScreen(repo, onBack = { navigateTo(1) })
                 }
@@ -309,11 +328,12 @@ fun VellamApp(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(prefs: PreferenceManager, repo: FirestoreRepository) {
-    val todayIntakeFlow = remember(repo) { repo.getTodayIntake() }
-    val dailyTotal by todayIntakeFlow.collectAsStateWithLifecycle(initialValue = 0)
-    val dailyGoal by prefs.dailyGoalFlow.collectAsStateWithLifecycle(initialValue = 2000)
-    val intakeAmount by prefs.intakeAmountFlow.collectAsStateWithLifecycle(initialValue = 250)
+fun HomeScreen(
+    repo: FirestoreRepository,
+    dailyTotal: Int,
+    dailyGoal: Int,
+    intakeAmount: Int
+) {
     
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current

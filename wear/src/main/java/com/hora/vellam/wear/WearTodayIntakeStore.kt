@@ -9,16 +9,16 @@ data class WearTodayIntakeSnapshot(
 )
 
 object WearTodayIntakeStore {
-    private const val PREFS_NAME = "wear_today_intake"
+    const val PREFS_NAME = "wear_today_intake"
     private const val KEY_DAY = "day_key"
     private const val KEY_TOTAL = "today_total_ml"
 
-    private fun todayKey(): String = LocalDate.now().toString()
+    fun currentDayKey(): String = LocalDate.now().toString()
 
     fun read(context: Context): WearTodayIntakeSnapshot {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val storedDay = prefs.getString(KEY_DAY, null)
-        val day = todayKey()
+        val day = currentDayKey()
         if (storedDay == day) {
             return WearTodayIntakeSnapshot(
                 dayKey = day,
@@ -34,7 +34,7 @@ object WearTodayIntakeStore {
     }
 
     fun setTodayTotal(context: Context, totalMl: Int): WearTodayIntakeSnapshot {
-        val day = todayKey()
+        val day = currentDayKey()
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_DAY, day)
